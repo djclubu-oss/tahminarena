@@ -10,6 +10,7 @@
 </head>
 <body class="dash-body">
 
+  <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <i class="fas fa-chart-line"></i>
@@ -49,22 +50,25 @@
           <small id="dashUserEmail">kullanici@email.com</small>
         </div>
       </div>
-      <a href="index.html" class="btn-logout" onclick="logout()">
+      <a href="/index.html" class="btn-logout" onclick="logout()">
         <i class="fas fa-sign-out-alt"></i>
       </a>
     </div>
   </aside>
 
+  <!-- Main Content -->
   <div class="dash-content">
 
-    <div class="api-banner hidden" id="apiBanner">
+    <!-- API Key Banner -->
+    <div class="api-banner" id="apiBanner">
       <i class="fas fa-key"></i>
-      <span>Gerçek maç verileri için API anahtarınızı girin:</span>
+      <span>Gerçek maç verileri için football-data.org API anahtarınızı girin:</span>
       <input type="text" id="apiKeyInput" placeholder="API anahtarınızı buraya yapıştırın..." />
-      <button onclick="saveApiKey()"><i class="fas fa-check"></i> Kaydet</button>
-      <button class="btn-skip" onclick="skipApiKey()">Geç</button>
+      <button onclick="saveApiKey()"><i class="fas fa-check"></i> Kaydet ve Yükle</button>
+      <button class="btn-skip" onclick="skipApiKey()">Şimdilik Geç</button>
     </div>
 
+    <!-- Topbar -->
     <div class="topbar">
       <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
       <div class="topbar-title" id="sectionTitle">Canlı Maçlar</div>
@@ -77,10 +81,11 @@
       </div>
     </div>
 
+    <!-- Stat Cards -->
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-icon green"><i class="fas fa-futbol"></i></div>
-        <div><div class="stat-num" id="liveCount">0</div><div class="stat-label">Canlı Maç</div></div>
+        <div><div class="stat-num" id="liveCount">12</div><div class="stat-label">Canlı Maç</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fas fa-calendar"></i></div>
@@ -88,14 +93,17 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon yellow"><i class="fas fa-fire"></i></div>
-        <div><div class="stat-num">12</div><div class="stat-label">Yüksek Oran</div></div>
+        <div><div class="stat-num">8</div><div class="stat-label">Yüksek Oran</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon red"><i class="fas fa-percent"></i></div>
-        <div><div class="stat-num">78%</div><div class="stat-label">Tahmin Başarısı</div></div>
+        <div><div class="stat-num">73%</div><div class="stat-label">Tahmin Başarısı</div></div>
       </div>
     </div>
 
+    <!-- Sections -->
+
+    <!-- CANLI MAÇLAR -->
     <section class="section" id="sec-live">
       <div class="section-header">
         <h3><i class="fas fa-circle live-dot"></i> Canlı Maçlar</h3>
@@ -109,6 +117,7 @@
       <div class="matches-list" id="liveMatches"></div>
     </section>
 
+    <!-- ORAN ANALİZİ -->
     <section class="section hidden" id="sec-odds">
       <div class="section-header">
         <h3><i class="fas fa-percent"></i> Oran Analizi</h3>
@@ -126,7 +135,8 @@
         <table class="odds-table">
           <thead>
             <tr>
-              <th>Lig</th><th>Maç</th><th>1</th><th>X</th><th>2</th><th>Alt 2.5</th><th>Üst 2.5</th><th>Analiz</th>
+              <th>Lig</th><th>Maç</th><th>1</th><th>X</th><th>2</th>
+              <th>Alt 2.5</th><th>Üst 2.5</th><th>Analiz</th>
             </tr>
           </thead>
           <tbody id="oddsTableBody"></tbody>
@@ -134,17 +144,28 @@
       </div>
     </section>
 
+    <!-- İSTATİSTİKLER -->
     <section class="section hidden" id="sec-stats">
       <div class="section-header">
         <h3><i class="fas fa-chart-bar"></i> İstatistikler</h3>
       </div>
       <div class="charts-grid">
-        <div class="chart-card"><h4>Lig Bazlı Maç Dağılımı</h4><canvas id="pieChart"></canvas></div>
-        <div class="chart-card"><h4>Haftalık Gol Ortalaması</h4><canvas id="barChart"></canvas></div>
-        <div class="chart-card wide"><h4>Oran Değişim Grafiği</h4><canvas id="lineChart"></canvas></div>
+        <div class="chart-card">
+          <h4>Lig Bazlı Maç Dağılımı</h4>
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h4>Haftalık Gol Ortalaması</h4>
+          <canvas id="barChart"></canvas>
+        </div>
+        <div class="chart-card wide">
+          <h4>Oran Değişim Grafiği (Son 7 Gün)</h4>
+          <canvas id="lineChart"></canvas>
+        </div>
       </div>
     </section>
 
+    <!-- YAKLAŞAN MAÇLAR -->
     <section class="section hidden" id="sec-upcoming">
       <div class="section-header">
         <h3><i class="fas fa-calendar-alt"></i> Yaklaşan Maçlar</h3>
@@ -152,19 +173,24 @@
       <div class="matches-list" id="upcomingMatches"></div>
     </section>
 
+    <!-- GÜNLÜK KUPON -->
     <section class="section hidden" id="sec-coupon">
       <div class="section-header">
         <h3><i class="fas fa-ticket-alt"></i> Günlük YZ Kuponu</h3>
-        <button class="coupon-refresh-btn" onclick="generateCoupon()"><i class="fas fa-sync-alt"></i> Yeniden Üret</button>
+        <button class="coupon-refresh-btn" onclick="generateCoupon()">
+          <i class="fas fa-sync-alt"></i> Yeniden Üret
+        </button>
       </div>
       <div class="coupon-hero" id="couponHero"></div>
       <div id="couponMatches"></div>
       <div class="coupon-disclaimer">
         <i class="fas fa-info-circle"></i>
-        Bu kupon yapay zeka modeli tarafından oluşturulmuştur. Sonuçlar garanti değildir.
+        Bu kupon yapay zeka modeli tarafından günlük analiz edilerek oluşturulmuştur.
+        Bahis oynamadan önce kendi araştırmanızı yapınız. Sonuçlar garanti değildir.
       </div>
     </section>
 
+    <!-- FAVORİLER -->
     <section class="section hidden" id="sec-favorites">
       <div class="section-header">
         <h3><i class="fas fa-star"></i> Favorilerim</h3>
@@ -178,6 +204,7 @@
       </div>
     </section>
 
+    <!-- YZ TAHMİN -->
     <section class="section hidden" id="sec-ai">
       <div class="section-header">
         <h3><i class="fas fa-robot"></i> YZ Tahmin Motoru</h3>
@@ -188,21 +215,34 @@
         </div>
       </div>
       <div class="ai-model-banner">
-        <div class="ai-model-stat"><i class="fas fa-brain"></i><div><div class="ai-model-val">%78.4</div><div class="ai-model-label">Genel Doğruluk</div></div></div>
-        <div class="ai-model-stat"><i class="fas fa-database"></i><div><div class="ai-model-val">12.400+</div><div class="ai-model-label">Analiz Edilen Maç</div></div></div>
-        <div class="ai-model-stat"><i class="fas fa-sync-alt"></i><div><div class="ai-model-val">Bugün 06:00</div><div class="ai-model-label">Son Model Günc.</div></div></div>
-        <div class="ai-model-stat"><i class="fas fa-trophy"></i><div><div class="ai-model-val">%84.1</div><div class="ai-model-label">Süper Lig Doğruluk</div></div></div>
+        <div class="ai-model-stat">
+          <i class="fas fa-brain"></i>
+          <div><div class="ai-model-val">%78.4</div><div class="ai-model-label">Genel Doğruluk</div></div>
+        </div>
+        <div class="ai-model-stat">
+          <i class="fas fa-database"></i>
+          <div><div class="ai-model-val">12.400+</div><div class="ai-model-label">Analiz Edilen Maç</div></div>
+        </div>
+        <div class="ai-model-stat">
+          <i class="fas fa-sync-alt"></i>
+          <div><div class="ai-model-val">Bugün 06:00</div><div class="ai-model-label">Son Model Günc.</div></div>
+        </div>
+        <div class="ai-model-stat">
+          <i class="fas fa-trophy"></i>
+          <div><div class="ai-model-val">%84.1</div><div class="ai-model-label">Süper Lig Doğruluk</div></div>
+        </div>
       </div>
       <div class="ai-cards-grid" id="aiCards"></div>
     </section>
 
+    <!-- ORAN KIYASLA -->
     <section class="section hidden" id="sec-compare">
       <div class="section-header">
         <h3><i class="fas fa-balance-scale"></i> Platform Oran Karşılaştırma</h3>
       </div>
       <div class="compare-info-bar">
         <i class="fas fa-info-circle"></i>
-        En iyi oran <span class="best-odd-demo">yeşil</span>, en kötü oran <span class="worst-odd-demo">kırmızı</span> ile gösterilir.
+        En iyi oran <span class="best-odd-demo">yeşil</span> ile, en kötü oran <span class="worst-odd-demo">kırmızı</span> ile gösterilir.
       </div>
       <div class="odds-search">
         <input type="text" id="compareSearch" placeholder="Takım ara..." oninput="filterCompare()"/>
@@ -238,6 +278,7 @@
 
   </div>
 
+  <!-- Modal -->
   <div class="modal-overlay hidden" id="oddsModal">
     <div class="modal-box">
       <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
