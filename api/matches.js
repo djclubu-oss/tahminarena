@@ -1,86 +1,81 @@
-const LEAGUE_MAP = {
-  203: { flag: '🇹🇷', key: 'sl',  name: 'Süper Lig' },
-  39:  { flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', key: 'pl',  name: 'Premier Lig' },
-  140: { flag: '🇪🇸', key: 'll',  name: 'La Liga' },
-  78:  { flag: '🇩🇪', key: 'bl',  name: 'Bundesliga' },
-  135: { flag: '🇮🇹', key: 'sa',  name: 'Serie A' },
-  61:  { flag: '🇫🇷', key: 'fl',  name: 'Ligue 1' },
-  88:  { flag: '🇳🇱', key: 'ned', name: 'Eredivisie' },
-  94:  { flag: '🇵🇹', key: 'por', name: 'Primeira Liga' },
-  2:   { flag: '🇪🇺', key: 'cl',  name: 'Şampiyonlar Ligi' },
-  3:   { flag: '🇪🇺', key: 'el',  name: 'Avrupa Ligi' },
-  848: { flag: '🇪🇺', key: 'ecl', name: 'Konferans Ligi' },
-  4:   { flag: '🌍',  key: 'wc',  name: 'Dünya Kupası' },
-};
-
-let cache = { data: null, ts: 0, date: '' };
-
-function mapStatus(s) {
-  if (['1H', '2H', 'ET', 'P', 'LIVE'].includes(s)) return 'IN_PLAY';
-  if (s === 'HT') return 'HALFTIME';
-  if (['FT', 'AET', 'PEN'].includes(s)) return 'FINISHED';
-  if (['PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(s)) return 'POSTPONED';
-  return 'SCHEDULED';
-}
-
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-
-  const today = new Date().toISOString().split('T')[0];
-  const now = Date.now();
-  const CACHE_MS = 15 * 60 * 1000;
-
-  if (cache.data && cache.date === today && now - cache.ts < CACHE_MS) {
-    return res.status(200).json(cache.data);
+  const key = process.env.RAPIDAPI_KEY;
+  if (!key) {
+    return res.status(500).json({ error: 'RAPIDAPI_KEY env variable eksik' });
   }
 
+  const today = new Date().toISOString().split('T')[0];
+
+  // Tüm ligler
+  const leagueIds = [203, 39, 140, 78, 135, 61, 2, 3, 88, 94, 848];
+  // TR Süper Lig=203, Premier=39, La Liga=140, Bundesliga=78, Serie A=135,
+  // Ligue1=61, UCL=2, UEL=3, Eredivisie=88, Primeira=94, UECL=848
+
+  const LEAGUE_META = {
+    203: { name: 'Süper Lig',        flag: '🇹🇷', key: 'tr1' },
+    39:  { name: 'Premier Lig',      flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', key: 'pl'  },
+    140: { name: 'La Liga',          flag: '🇪🇸', key: 'll'  },
+    78:  { name: 'Bundesliga',       flag: '🇩🇪', key: 'bl'  },
+    135: { name: 'Serie A',          flag: '🇮🇹', key: 'sa'  },
+    61:  { name: 'Ligue 1',          flag: '🇫🇷', key: 'fl'  },
+    2:   { name: 'Şampiyonlar Ligi', flag: '🇪🇺', key: 'cl'  },
+    3:   { name: 'Avrupa Ligi',      flag: '🇪🇺', key: 'el'  },
+    88:  { name: 'Eredivisie',       flag: '🇳🇱', key: 'ned' },
+    94:  { name: 'Primeira Liga',    flag: '🇵🇹', key: 'por' },
+    848: { name: 'Konferans Ligi',   flag: '🇪🇺', key: 'ecl' },
+  };
+
+  const season = new Date().getFullYear();
+
   try {
-    const response = await fetch(
-      `https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${today}`,
-      {
-        headers: {
-          'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com'
-        }
-      }
+    const results = await Promise.allSettled(
+      leagueIds.map(lid =>
+        fetch(`https://api-football-v1.p.rapidapi.com/v3/fixtures?league=${lid}&season=${season}&date=${today}`, {
+          headers: {
+            'X-RapidAPI-Key': key,
+            'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
+          },
+        }).then(r => r.json())
+      )
     );
 
-    const data = await response.json();
-    const fixtures = data.response || [];
+    let live = [], upcoming = [], finished = [];
 
-    const matches = fixtures
-      .filter(f => LEAGUE_MAP[f.league.id])
-      .map(f => {
-        const lg = LEAGUE_MAP[f.league.id];
-        const status = mapStatus(f.fixture.status.short);
-        return {
+    results.forEach((result, i) => {
+      if (result.status !== 'fulfilled') return;
+      const fixtures = result.value?.response || [];
+      const lid = leagueIds[i];
+      const meta = LEAGUE_META[lid] || { name: 'Diğer', flag: '⚽', key: 'other' };
+
+      fixtures.forEach(f => {
+        const match = {
           id: f.fixture.id,
-          status,
-          minute: f.fixture.status.elapsed,
+          status: f.fixture.status.short,
           utcDate: f.fixture.date,
-          league: lg.name,
-          leagueKey: lg.key,
-          flag: lg.flag,
-          home: f.teams.home.name,
-          away: f.teams.away.name,
-          homeGoals: f.goals.home,
-          awayGoals: f.goals.away,
+          homeTeam: { name: f.teams.home.name, shortName: f.teams.home.name },
+          awayTeam: { name: f.teams.away.name, shortName: f.teams.away.name },
+          score: {
+            fullTime: { home: f.goals.home, away: f.goals.away },
+          },
+          minute: f.fixture.status.elapsed,
+          competition: { code: String(lid), name: meta.name, flag: meta.flag },
+          odds: f.odds,
         };
+
+        const s = f.fixture.status.short;
+        if (['1H','2H','HT','ET','BT','P'].includes(s)) {
+          live.push(match);
+        } else if (['FT','AET','PEN'].includes(s)) {
+          finished.push(match);
+        } else {
+          upcoming.push(match);
+        }
       });
+    });
 
-    const result = {
-      date: today,
-      total: matches.length,
-      live:     matches.filter(m => m.status === 'IN_PLAY' || m.status === 'HALFTIME'),
-      upcoming: matches.filter(m => m.status === 'SCHEDULED'),
-      finished: matches.filter(m => m.status === 'FINISHED'),
-    };
-
-    cache = { data: result, ts: now, date: today };
-    res.status(200).json(result);
-
+    res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=60');
+    return res.json({ live, upcoming, finished, date: today });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }
