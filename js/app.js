@@ -37,71 +37,67 @@ function autoGenPredictions(matches) {
     const oX = parseFloat(m.oddsX || m.odds?.d || 3.30);
     const o2 = parseFloat(m.odds2 || m.odds?.a || 3.50);
 
-    const p1 = 1 / o1, pX = 1 / oX, p2 = 1 / o2;
+    const p1 = 1/o1, pX = 1/oX, p2 = 1/o2;
     const total = p1 + pX + p2;
-    const c1 = Math.round(p1 / total * 100);
-    const cX = Math.round(pX / total * 100);
+    const c1 = Math.round(p1/total*100);
+    const cX = Math.round(pX/total*100);
     const c2 = 100 - c1 - cX;
 
     const minOdds = Math.min(o1, o2);
     const difficulty = minOdds <= 1.60 ? 'easy' : minOdds <= 2.20 ? 'medium' : 'hard';
-    const modelScore = Math.min(95, Math.round(85 - (minOdds - 1.0) * 20 + Math.random() * 8));
+    const modelScore = Math.min(95, Math.round(85 - (minOdds-1.0)*20 + Math.random()*8));
 
     const oOver  = parseFloat(m.oddsOver  || 1.80);
     const oUnder = parseFloat(m.oddsUnder || 1.90);
-    const confOver  = Math.round(1 / oOver  / (1/oOver + 1/oUnder) * 100);
+    const confOver  = Math.round(1/oOver  / (1/oOver+1/oUnder) * 100);
     const confUnder = 100 - confOver;
 
     const oBttsY = parseFloat(m.oddsBttsY || 1.75);
     const oBttsN = parseFloat(m.oddsBttsN || 1.95);
-    const confBttsY = Math.round(1 / oBttsY / (1/oBttsY + 1/oBttsN) * 100);
+    const confBttsY = Math.round(1/oBttsY / (1/oBttsY+1/oBttsN) * 100);
 
-    const oHT1 = parseFloat(m.oddsHT1 || (o1 * 1.3).toFixed(2));
+    const oHT1 = parseFloat(m.oddsHT1 || (o1*1.3).toFixed(2));
     const oHTX = parseFloat(m.oddsHTX || 2.10);
-    const oHT2 = parseFloat(m.oddsHT2 || (o2 * 1.3).toFixed(2));
-    const pH1 = 1/oHT1, pHX = 1/oHTX, pH2 = 1/oHT2;
-    const htTotal = pH1 + pHX + pH2;
-    const cHT1 = Math.round(pH1 / htTotal * 100);
-    const cHTX = Math.round(pHX / htTotal * 100);
+    const oHT2 = parseFloat(m.oddsHT2 || (o2*1.3).toFixed(2));
+    const pH1=1/oHT1, pHX=1/oHTX, pH2=1/oHT2;
+    const htTotal = pH1+pHX+pH2;
+    const cHT1 = Math.round(pH1/htTotal*100);
+    const cHTX = Math.round(pHX/htTotal*100);
     const cHT2 = 100 - cHT1 - cHTX;
 
-    const resultPick = c1 >= c2 ? { pick: '1', label: 'MS Ev Kazanır', conf: c1, odds: o1 }
-                                 : { pick: '2', label: 'MS Deplasman',  conf: c2, odds: o2 };
-    const ouPick = confOver >= confUnder
-      ? { pick: 'Üst', label: 'Üst 2.5 Gol', conf: confOver,  odds: oOver  }
-      : { pick: 'Alt', label: 'Alt 2.5 Gol',  conf: confUnder, odds: oUnder };
-    const bttsPick = confBttsY >= 50
-      ? { pick: 'Var', label: 'KG Var', conf: confBttsY,      odds: oBttsY }
-      : { pick: 'Yok', label: 'KG Yok', conf: 100-confBttsY,  odds: oBttsN };
-    const htPick = cHT1 >= cHT2 ? { pick: 'İY 1', label: 'İY Ev Önde',       conf: cHT1, odds: oHT1 }
-                                 : { pick: 'İY 2', label: 'İY Deplasman Önde', conf: cHT2, odds: oHT2 };
-    const htftOdds = +(o1 * oHT1 * 0.7).toFixed(2);
-    const htftConf = Math.round(resultPick.conf * htPick.conf / 100);
+    const resultPick = c1>=c2
+      ? { pick:'1', label:'MS Ev Kazanır', conf:c1, odds:o1 }
+      : { pick:'2', label:'MS Deplasman',  conf:c2, odds:o2 };
+    const ouPick = confOver>=confUnder
+      ? { pick:'Üst', label:'Üst 2.5 Gol', conf:confOver,  odds:oOver  }
+      : { pick:'Alt', label:'Alt 2.5 Gol',  conf:confUnder, odds:oUnder };
+    const bttsPick = confBttsY>=50
+      ? { pick:'Var', label:'KG Var', conf:confBttsY,     odds:oBttsY }
+      : { pick:'Yok', label:'KG Yok', conf:100-confBttsY, odds:oBttsN };
+    const htPick = cHT1>=cHT2
+      ? { pick:'İY 1', label:'İY Ev Önde',        conf:cHT1, odds:oHT1 }
+      : { pick:'İY 2', label:'İY Deplasman Önde',  conf:cHT2, odds:oHT2 };
+    const htftOdds = +(o1*oHT1*0.7).toFixed(2);
+    const htftConf = Math.round(resultPick.conf*htPick.conf/100);
 
-    const markets = { result: resultPick, ou: ouPick, btts: bttsPick, ht: htPick,
-      htft: { pick: `${htPick.pick.replace('İY ','')}/MS ${resultPick.pick}`, label: `${htPick.label.replace('İY ','')} / ${resultPick.label}`, conf: htftConf, odds: htftOdds }
+    const markets = {
+      result: resultPick, ou: ouPick, btts: bttsPick, ht: htPick,
+      htft: { pick:`${htPick.pick.replace('İY ','')}/MS ${resultPick.pick}`, label:`${htPick.label.replace('İY ','')} / ${resultPick.label}`, conf:htftConf, odds:htftOdds }
     };
-    const bestKey = Object.entries(markets).reduce((a,b) => b[1].conf > a[1].conf ? b : a)[0];
+    const bestKey = Object.entries(markets).reduce((a,b) => b[1].conf>a[1].conf?b:a)[0];
 
     const reasons = [
       `${m.home} ev sahibi avantajıyla oynuyor, oran analizi güçlü taraftarlığa işaret ediyor.`,
-      `İki takımın son form grafiği incelendiğinde ${resultPick.pick === '1' ? m.home : m.away} öne çıkıyor.`,
+      `İki takımın son form grafiği incelendiğinde ${resultPick.pick==='1'?m.home:m.away} öne çıkıyor.`,
       `Bu lig maçlarında istatistiksel olarak ${ouPick.pick} 2.5 gol daha sık gerçekleşiyor.`,
-      `Karşılıklı gol ihtimali oransal verilere göre ${bttsPick.pick === 'Var' ? 'yüksek' : 'düşük'}.`,
+      `Karşılıklı gol ihtimali oransal verilere göre ${bttsPick.pick==='Var'?'yüksek':'düşük'}.`,
     ];
 
     return {
-      id: m.id || idx + 100,
-      league: m.league,
-      leagueKey: m.leagueKey || 'other',
-      flag: m.flag || '⚽',
-      home: m.home,
-      away: m.away,
-      difficulty,
-      modelScore,
-      markets,
-      bestPick: bestKey,
-      reason: reasons[idx % reasons.length],
+      id: m.id||idx+100, league:m.league, leagueKey:m.leagueKey||'other',
+      flag:m.flag||'⚽', home:m.home, away:m.away,
+      difficulty, modelScore, markets, bestPick:bestKey,
+      reason:reasons[idx%reasons.length],
     };
   });
 }
@@ -112,6 +108,7 @@ let ALL_API_MATCHES = [];
 async function loadRealMatches() {
   const liveEl     = document.getElementById('liveMatches');
   const upcomingEl = document.getElementById('upcomingMatches');
+  if (!liveEl) return;
 
   liveEl.innerHTML     = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Tüm maçlar yükleniyor...</div>';
   upcomingEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>';
@@ -119,7 +116,6 @@ async function loadRealMatches() {
   try {
     const res = await fetch('/api/matches');
     if (!res.ok) throw new Error(`API Hatası: ${res.status}`);
-
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -135,64 +131,55 @@ async function loadRealMatches() {
     const statEl = document.querySelector('.stat-cards .stat-card:nth-child(2) .stat-num');
     if (statEl) statEl.textContent = matches.length;
 
-    // Canlı
     if (live.length > 0) {
       liveEl.innerHTML = groupByLeague(live, true);
     } else if (finished.length > 0) {
-      liveEl.innerHTML = `<div class="api-section-label"><i class="fas fa-flag-checkered"></i> Tamamlanan Maçlar (${finished.length})</div>`
-        + groupByLeague(finished, false, true);
+      liveEl.innerHTML = `<div class="api-section-label"><i class="fas fa-flag-checkered"></i> Tamamlanan Maçlar (${finished.length})</div>` + groupByLeague(finished, false, true);
     } else {
       liveEl.innerHTML = '<div class="empty-state"><i class="fas fa-circle"></i><p>Şu an canlı maç yok.</p></div>';
     }
 
-    // Yaklaşan
     if (upcoming.length > 0) {
-      upcomingEl.innerHTML = `<div class="match-count-bar"><i class="fas fa-calendar-alt"></i> Bugün ${upcoming.length} maç planlandı</div>`
-        + groupByLeague(upcoming, false);
+      upcomingEl.innerHTML = `<div class="match-count-bar"><i class="fas fa-calendar-alt"></i> Bugün ${upcoming.length} maç planlandı</div>` + groupByLeague(upcoming, false);
     } else {
       upcomingEl.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Yaklaşan maç yok.</p></div>';
     }
 
-    // YZ analizi
     const forAI = [...upcoming, ...live].map(m => apiMatchToMock(m));
     window._currentAIPredictions = autoGenPredictions(forAI);
 
     if (live.length > 0) setTimeout(loadRealMatches, 60000);
 
   } catch (err) {
-    liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p><small>Sunucu bağlantısı kontrol ediliyor...</small></div>`;
+    liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p><small>Lütfen bekleyin, tekrar deneniyor...</small></div>`;
     upcomingEl.innerHTML = '';
     updateApiStatus(false);
   }
 }
 
 function apiMatchToMock(m) {
-  const lg = LEAGUE_META[String(m.competition?.code)] || { name: m.competition?.name || 'Lig', flag: '⚽', key: 'other' };
+  const lg = LEAGUE_META[String(m.competition?.code)] || { name:m.competition?.name||'Lig', flag:'⚽', key:'other' };
   const matchDate = new Date(m.utcDate);
-  const timeStr = matchDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+  const timeStr = matchDate.toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit', timeZone:'Europe/Istanbul' });
   return {
-    id: m.id,
-    league: lg.name,
-    leagueKey: lg.key,
-    flag: lg.flag,
-    home: m.homeTeam?.shortName || m.homeTeam?.name || '?',
-    away: m.awayTeam?.shortName || m.awayTeam?.name || '?',
-    time: timeStr,
-    odds1: null, oddsX: null, odds2: null,
-    oddsOver: null, oddsUnder: null, oddsBttsY: null, oddsBttsN: null,
+    id:m.id, league:lg.name, leagueKey:lg.key, flag:lg.flag,
+    home: m.homeTeam?.shortName||m.homeTeam?.name||'?',
+    away: m.awayTeam?.shortName||m.awayTeam?.name||'?',
+    homeLogo: m.homeLogo||'', awayLogo: m.awayLogo||'',
+    time:timeStr, odds1:null, oddsX:null, odds2:null,
+    oddsOver:null, oddsUnder:null, oddsBttsY:null, oddsBttsN:null,
   };
 }
 
-function groupByLeague(matches, isLive, isFinished = false) {
+function groupByLeague(matches, isLive, isFinished=false) {
   const groups = {};
   matches.forEach(m => {
-    const key = m.competition?.name || 'Diğer';
-    if (!groups[key]) groups[key] = { meta: m.competition, matches: [] };
+    const key = m.competition?.name||'Diğer';
+    if (!groups[key]) groups[key] = { meta:m.competition, matches:[] };
     groups[key].matches.push(m);
   });
-
-  return Object.entries(groups).map(([name, g]) => {
-    const lg = LEAGUE_META[String(g.meta?.code)] || { flag: '⚽' };
+  return Object.entries(groups).map(([name,g]) => {
+    const lg = LEAGUE_META[String(g.meta?.code)] || { flag:'⚽' };
     const cards = g.matches.map(m => realMatchCard(m, isLive, isFinished)).join('');
     return `<div class="league-group">
       <div class="league-group-header">${lg.flag} ${name} <span class="league-match-count">${g.matches.length} maç</span></div>
@@ -201,25 +188,39 @@ function groupByLeague(matches, isLive, isFinished = false) {
   }).join('');
 }
 
-function realMatchCard(m, isLive, isFinished = false) {
-  const lg = LEAGUE_META[String(m.competition?.code)] || { name: m.competition?.name || 'Lig', flag: '⚽' };
+function teamLogo(url, name) {
+  if (url) return `<img class="team-logo" src="${url}" alt="${name}" onerror="this.style.display='none'">`;
+  return `<span class="team-logo-placeholder">⚽</span>`;
+}
+
+function realMatchCard(m, isLive, isFinished=false) {
+  const lg = LEAGUE_META[String(m.competition?.code)] || { name:m.competition?.name||'Lig', flag:'⚽' };
   const homeScore = m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? '';
   const awayScore = m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? '';
-  const scoreStr  = homeScore !== '' ? `${homeScore} - ${awayScore}` : '- -';
+  const scoreStr  = homeScore!=='' ? `${homeScore} - ${awayScore}` : '- -';
   const matchDate = new Date(m.utcDate);
-  const timeStr   = matchDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
-
+  const timeStr   = matchDate.toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit', timeZone:'Europe/Istanbul' });
   const statusLabel = isFinished ? '<span class="match-finished">Bitti</span>'
     : isLive ? '<span class="match-minute live-dot">Canlı</span>' : '';
+  const homeName = m.homeTeam?.shortName||m.homeTeam?.name||'?';
+  const awayName = m.awayTeam?.shortName||m.awayTeam?.name||'?';
+  const homeLogo = m.homeLogo ? `<img class="team-logo" src="${m.homeLogo}" alt="${homeName}" onerror="this.style.display='none'">` : '';
+  const awayLogo = m.awayLogo ? `<img class="team-logo" src="${m.awayLogo}" alt="${awayName}" onerror="this.style.display='none'">` : '';
 
   return `
-  <div class="match-card real-match">
+  <div class="match-card real-match${isLive?' is-live':''}">
     <div class="match-league"><span class="league-flag">${lg.flag}</span>${lg.name}</div>
     <div class="match-teams">
-      <div class="teams">${m.homeTeam?.shortName || m.homeTeam?.name} <span style="color:var(--text-muted)">vs</span> ${m.awayTeam?.shortName || m.awayTeam?.name}</div>
+      <div class="teams-with-logos">
+        ${homeLogo}<span>${homeName}</span>
+        <span class="vs-sep">vs</span>
+        ${awayLogo}<span>${awayName}</span>
+      </div>
       <div class="match-time">${statusLabel} ${timeStr}</div>
     </div>
-    <div class="match-live-score" style="${!isLive && !isFinished ? 'font-size:.85rem;color:var(--text-muted)' : ''}">${isLive || isFinished ? scoreStr : timeStr}</div>
+    <div class="match-live-score" style="${!isLive&&!isFinished?'font-size:.85rem;color:var(--text-muted)':''}">
+      ${isLive||isFinished ? scoreStr : timeStr}
+    </div>
     <div class="match-odds">
       <div class="odd-btn"><span class="odd-label">1</span><span class="odd-val">-</span></div>
       <div class="odd-btn"><span class="odd-label">X</span><span class="odd-val">-</span></div>
@@ -234,16 +235,16 @@ function handleLogin(e) {
   const email = document.getElementById('loginEmail').value.trim();
   const pass  = document.getElementById('loginPass').value;
   const errEl = document.getElementById('loginError');
-  const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
-  const user  = users.find(u => u.email === email && u.pass === btoa(pass));
-  if (email === 'demo@tahminarena.com' && pass === 'demo123') {
-    localStorage.setItem('oa_session', JSON.stringify({ name: 'Demo Kullanıcı', email }));
-    window.location.href = 'dashboard.html'; return;
+  const users = JSON.parse(localStorage.getItem('oa_users')||'[]');
+  const user  = users.find(u => u.email===email && u.pass===btoa(pass));
+  if (email==='demo@tahminarena.com' && pass==='demo123') {
+    localStorage.setItem('oa_session', JSON.stringify({ name:'Demo Kullanıcı', email }));
+    window.location.href='dashboard.html'; return;
   }
-  if (!user) { errEl.textContent = 'E-posta veya şifre hatalı!'; return; }
-  errEl.textContent = '';
-  localStorage.setItem('oa_session', JSON.stringify({ name: user.name, email: user.email }));
-  window.location.href = 'dashboard.html';
+  if (!user) { errEl.textContent='E-posta veya şifre hatalı!'; return; }
+  errEl.textContent='';
+  localStorage.setItem('oa_session', JSON.stringify({ name:user.name, email:user.email }));
+  window.location.href='dashboard.html';
 }
 
 function handleRegister(e) {
@@ -254,17 +255,17 @@ function handleRegister(e) {
   const pass2 = document.getElementById('regPass2').value;
   const errEl = document.getElementById('regError');
   const sucEl = document.getElementById('regSuccess');
-  if (pass.length < 6) { errEl.textContent = 'Şifre en az 6 karakter!'; return; }
-  if (pass !== pass2)  { errEl.textContent = 'Şifreler eşleşmiyor!'; return; }
-  const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
-  if (users.find(u => u.email === email)) { errEl.textContent = 'Bu e-posta zaten kayıtlı!'; return; }
-  errEl.textContent = '';
-  users.push({ name, email, pass: btoa(pass) });
+  if (pass.length<6) { errEl.textContent='Şifre en az 6 karakter!'; return; }
+  if (pass!==pass2)  { errEl.textContent='Şifreler eşleşmiyor!'; return; }
+  const users = JSON.parse(localStorage.getItem('oa_users')||'[]');
+  if (users.find(u => u.email===email)) { errEl.textContent='Bu e-posta zaten kayıtlı!'; return; }
+  errEl.textContent='';
+  users.push({ name, email, pass:btoa(pass) });
   localStorage.setItem('oa_users', JSON.stringify(users));
-  sucEl.textContent = 'Kayıt başarılı! Yönlendiriliyorsunuz...';
+  sucEl.textContent='Kayıt başarılı! Yönlendiriliyorsunuz...';
   setTimeout(() => {
     localStorage.setItem('oa_session', JSON.stringify({ name, email }));
-    window.location.href = 'dashboard.html';
+    window.location.href='dashboard.html';
   }, 1500);
 }
 
@@ -272,19 +273,18 @@ function logout() { localStorage.removeItem('oa_session'); }
 
 function togglePass(id, el) {
   const inp = document.getElementById(id);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+  inp.type = inp.type==='password' ? 'text' : 'password';
+  el.innerHTML = inp.type==='password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
 }
 
 // ===== DASHBOARD INIT =====
-let favorites = JSON.parse(localStorage.getItem('oa_favs') || '[]');
+let favorites = JSON.parse(localStorage.getItem('oa_favs')||'[]');
 
 function initDashboard() {
-  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
-  if (!session) { window.location.href = 'index.html'; return; }
+  const session = JSON.parse(localStorage.getItem('oa_session')||'null');
+  if (!session) { window.location.href='index.html'; return; }
   document.getElementById('dashUserName').textContent  = session.name;
   document.getElementById('dashUserEmail').textContent = session.email;
-
   startClock();
   document.getElementById('apiBanner')?.classList.add('hidden');
   updateApiStatus(true);
@@ -295,30 +295,30 @@ function initDashboard() {
 function startClock() {
   const el = document.getElementById('clock');
   if (!el) return;
-  function tick() { el.textContent = new Date().toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit', second:'2-digit' }); }
-  tick(); setInterval(tick, 1000);
+  function tick() { el.textContent = new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  tick(); setInterval(tick,1000);
 }
 
 // ===== SECTION NAV =====
 const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare'];
-const TITLES = {
+const TITLES   = {
   live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
   upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
   ai:'YZ Tahmin', coupon:'Günlük YZ Kuponu', compare:'Oran Karşılaştırma'
 };
 
 function showSection(key) {
-  SECTIONS.forEach(s => document.getElementById('sec-'+s).classList.toggle('hidden', s !== key));
-  document.getElementById('sectionTitle').textContent = TITLES[key] || '';
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', SECTIONS[i] === key));
-  if (key === 'stats')     initCharts();
-  if (key === 'favorites') renderFavorites();
-  if (key === 'ai')        renderAIPredictions(window._currentAIPredictions || []);
-  if (key === 'coupon')    generateCoupon(window._currentAIPredictions || []);
-  if (key === 'compare')   renderCompare(COMPARE_DATA);
+  SECTIONS.forEach(s => document.getElementById('sec-'+s).classList.toggle('hidden', s!==key));
+  document.getElementById('sectionTitle').textContent = TITLES[key]||'';
+  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', SECTIONS[i]===key));
+  if (key==='stats')     initCharts();
+  if (key==='favorites') renderFavorites();
+  if (key==='ai')        renderAIPredictions(window._currentAIPredictions||[]);
+  if (key==='coupon')    generateCoupon(window._currentAIPredictions||[]);
+  if (key==='compare')   renderCompare(COMPARE_DATA);
 }
 
-// ===== MOCK MATCH CARDS (offline fallback) =====
+// ===== MOCK MATCH CARDS =====
 function matchCard(m, isLive) {
   const isFav = favorites.includes(m.id);
   return `
@@ -326,29 +326,28 @@ function matchCard(m, isLive) {
     <div class="match-league"><span class="league-flag">${m.flag}</span>${m.league}</div>
     <div class="match-teams">
       <div class="teams">${m.home} <span style="color:var(--text-muted)">vs</span> ${m.away}</div>
-      <div class="match-time">${isLive ? `<span class="match-minute live-dot">${m.minute}'</span>` : m.time}</div>
+      <div class="match-time">${isLive?`<span class="match-minute live-dot">${m.minute}'</span>`:m.time}</div>
     </div>
-    ${isLive ? `<div class="match-live-score">${m.score}</div>` : ''}
+    ${isLive?`<div class="match-live-score">${m.score}</div>`:''}
     <div class="match-odds">
-      <div class="odd-btn ${m.trend[0]}" title="Ev Sahibi"><span class="odd-label">1</span><span class="odd-val">${m.odds.h}</span></div>
-      <div class="odd-btn ${m.trend[1]}" title="Beraberlik"><span class="odd-label">X</span><span class="odd-val">${m.odds.d}</span></div>
-      <div class="odd-btn ${m.trend[2]}" title="Deplasman"><span class="odd-label">2</span><span class="odd-val">${m.odds.a}</span></div>
+      <div class="odd-btn ${m.trend[0]}"><span class="odd-label">1</span><span class="odd-val">${m.odds.h}</span></div>
+      <div class="odd-btn ${m.trend[1]}"><span class="odd-label">X</span><span class="odd-val">${m.odds.d}</span></div>
+      <div class="odd-btn ${m.trend[2]}"><span class="odd-label">2</span><span class="odd-val">${m.odds.a}</span></div>
     </div>
     <button class="fav-btn ${isFav?'active':''}" onclick="toggleFav(${m.id},this)"><i class="fas fa-star"></i></button>
   </div>`;
 }
 
-function renderLiveMatches(data)     { document.getElementById('liveMatches').innerHTML     = data.map(m => matchCard(m,true)).join(''); }
-function renderUpcomingMatches(data) { document.getElementById('upcomingMatches').innerHTML = data.map(m => matchCard(m,false)).join(''); }
-
+function renderLiveMatches(data)     { document.getElementById('liveMatches').innerHTML     = data.map(m=>matchCard(m,true)).join(''); }
+function renderUpcomingMatches(data) { document.getElementById('upcomingMatches').innerHTML = data.map(m=>matchCard(m,false)).join(''); }
 function filterLeague(key, btn) {
-  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
 }
 
 // ===== ODDS TABLE =====
 function renderOddsTable(data) {
-  document.getElementById('oddsTableBody').innerHTML = data.map(r => `
+  document.getElementById('oddsTableBody').innerHTML = data.map(r=>`
     <tr>
       <td>${r.league}</td>
       <td><strong>${r.home}</strong> vs <strong>${r.away}</strong></td>
@@ -358,22 +357,21 @@ function renderOddsTable(data) {
           <button class="detail-btn" style="margin-left:8px" onclick="openModal('${r.home} vs ${r.away}',${JSON.stringify(r).replace(/"/g,'&quot;')})">Detay</button></td>
     </tr>`).join('');
 }
-
 function filterOdds() {
   const q  = document.getElementById('oddsSearch').value.toLowerCase();
   const lg = document.getElementById('oddsLeague').value;
-  renderOddsTable(ODDS_DATA.filter(r => (r.home+' '+r.away).toLowerCase().includes(q) && (lg==='all'||r.leagueKey===lg)));
+  renderOddsTable(ODDS_DATA.filter(r=>(r.home+' '+r.away).toLowerCase().includes(q)&&(lg==='all'||r.leagueKey===lg)));
 }
 
 // ===== FAVORITES =====
 function toggleFav(id, btn) {
-  favorites = favorites.includes(id) ? favorites.filter(f=>f!==id) : [...favorites, id];
+  favorites = favorites.includes(id) ? favorites.filter(f=>f!==id) : [...favorites,id];
   btn.classList.toggle('active', favorites.includes(id));
   localStorage.setItem('oa_favs', JSON.stringify(favorites));
 }
 function renderFavorites() {
   document.getElementById('favMatches').innerHTML =
-    '<div class="empty-state"><i class="fas fa-star"></i><p>Henüz favori yok.</p><small>Maçların yanındaki yıldıza tıkla.</small></div>';
+    '<div class="empty-state"><i class="fas fa-star"></i><p>Henüz favori yok.</p></div>';
 }
 
 // ===== MODAL =====
@@ -392,7 +390,12 @@ function openModal(title, data) {
 function closeModal() { document.getElementById('oddsModal').classList.add('hidden'); }
 
 // ===== SIDEBAR =====
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebarOverlay');
+  sb.classList.toggle('open');
+  if (ov) ov.classList.toggle('visible');
+}
 
 // ===== YZ TAHMİN =====
 function confidenceColor(s) { return s>=80?'bar-green':s>=60?'bar-yellow':'bar-red'; }
@@ -403,24 +406,21 @@ const MARKET_ICONS  = { result:'fa-trophy', ou:'fa-sort-amount-up', btts:'fa-exc
 const MARKET_LABELS = { result:'Maç Sonucu', ou:'Alt / Üst 2.5', btts:'KG Var / Yok', ht:'İlk Yarı', htft:'İY / MS Kombine' };
 
 function difficultyInfo(d) {
-  return d==='easy'?{cls:'diff-easy',icon:'fa-check-circle',text:'Kolay'}
-        :d==='medium'?{cls:'diff-medium',icon:'fa-minus-circle',text:'Orta'}
-        :{cls:'diff-hard',icon:'fa-times-circle',text:'Zor'};
+  return d==='easy'  ? {cls:'diff-easy',  icon:'fa-check-circle', text:'Kolay'}
+       : d==='medium'? {cls:'diff-medium', icon:'fa-minus-circle', text:'Orta'}
+       :               {cls:'diff-hard',   icon:'fa-times-circle', text:'Zor'};
 }
 
 function renderAIPredictions(data) {
   const container = document.getElementById('aiCards');
-  if (!data || data.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><p>Maçlar yükleniyor, lütfen bekleyin...</p><small>Canlı/Yaklaşan bölümüne gidip geri dönün.</small></div>';
+  if (!data||data.length===0) {
+    container.innerHTML='<div class="empty-state"><i class="fas fa-robot"></i><p>Maçlar yükleniyor...</p><small>Canlı/Yaklaşan bölümüne gidip geri dönün.</small></div>';
     return;
   }
   container.innerHTML = data.map(p => {
-    const lbl     = confidenceLabel(p.modelScore);
-    const diff    = difficultyInfo(p.difficulty);
-    const bestMkt = p.markets[p.bestPick];
-    const marketRows = Object.entries(p.markets).map(([key,mkt]) => {
-      const isBest  = key === p.bestPick;
-      const confCls = mkt.conf>=70?'conf-green':mkt.conf>=55?'conf-yellow':'conf-red';
+    const lbl=confidenceLabel(p.modelScore), diff=difficultyInfo(p.difficulty), bestMkt=p.markets[p.bestPick];
+    const marketRows = Object.entries(p.markets).map(([key,mkt])=>{
+      const isBest=key===p.bestPick, confCls=mkt.conf>=70?'conf-green':mkt.conf>=55?'conf-yellow':'conf-red';
       return `<div class="market-row ${isBest?'market-best':''}">
         <div class="market-info"><i class="fas ${MARKET_ICONS[key]}"></i><span class="market-name">${MARKET_LABELS[key]}</span>${isBest?'<span class="best-tag">EN İYİ</span>':''}</div>
         <div class="market-pick">${mkt.label}</div>
@@ -457,44 +457,34 @@ function renderAIPredictions(data) {
       </div>
     </div>`;
   }).join('');
-  requestAnimationFrame(() => setTimeout(() => {
-    document.querySelectorAll('.confidence-bar[data-target],.conf-mini-bar[data-target]').forEach(b => b.style.width=b.dataset.target);
-  }, 80));
+  requestAnimationFrame(()=>setTimeout(()=>{
+    document.querySelectorAll('.confidence-bar[data-target],.conf-mini-bar[data-target]').forEach(b=>b.style.width=b.dataset.target);
+  },80));
 }
 
 function filterAI(level, btn) {
-  document.querySelectorAll('#sec-ai .ftab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#sec-ai .ftab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const src = window._currentAIPredictions || [];
-  const filtered = level==='all' ? src
-    : src.filter(p => level==='high'?p.modelScore>=80:level==='medium'?p.modelScore>=60&&p.modelScore<80:p.modelScore<60);
+  const src = window._currentAIPredictions||[];
+  const filtered = level==='all'?src:src.filter(p=>level==='high'?p.modelScore>=80:level==='medium'?p.modelScore>=60&&p.modelScore<80:p.modelScore<60);
   renderAIPredictions(filtered);
 }
 
 // ===== GÜNLÜK KUPON =====
 function generateCoupon(predictions) {
-  const src = predictions || window._currentAIPredictions || [];
+  const src = predictions||window._currentAIPredictions||[];
   if (!src.length) {
-    document.getElementById('couponHero').innerHTML    = '<div class="empty-state"><i class="fas fa-ticket-alt"></i><p>Kupon için maç bekleniyor...</p></div>';
-    document.getElementById('couponMatches').innerHTML = '';
-    return;
+    document.getElementById('couponHero').innerHTML='<div class="empty-state"><i class="fas fa-ticket-alt"></i><p>Kupon için maç bekleniyor...</p></div>';
+    document.getElementById('couponMatches').innerHTML=''; return;
   }
-  const sorted = [...src]
-    .filter(p => p.difficulty !== 'hard' || p.modelScore >= 80)
-    .sort((a,b) => b.modelScore - a.modelScore)
-    .slice(0, 3);
-
-  const picks = sorted.map(p => {
-    const bestKey = Object.entries(p.markets).reduce((a,b) => b[1].conf>a[1].conf?b:a)[0];
-    return { ...p, selectedMarket: p.markets[bestKey], marketKey: bestKey };
-  });
-
-  const totalOdds = picks.reduce((acc,p) => acc * p.selectedMarket.odds, 1).toFixed(2);
-  const avgConf   = Math.round(picks.reduce((acc,p) => acc + p.selectedMarket.conf, 0) / picks.length);
-  const combined  = Math.round(picks.reduce((a,p) => a * p.selectedMarket.conf/100, 1) * 100);
+  const sorted = [...src].filter(p=>p.difficulty!=='hard'||p.modelScore>=80).sort((a,b)=>b.modelScore-a.modelScore).slice(0,3);
+  const picks  = sorted.map(p=>{ const bk=Object.entries(p.markets).reduce((a,b)=>b[1].conf>a[1].conf?b:a)[0]; return {...p,selectedMarket:p.markets[bk],marketKey:bk}; });
+  const totalOdds = picks.reduce((acc,p)=>acc*p.selectedMarket.odds,1).toFixed(2);
+  const avgConf   = Math.round(picks.reduce((acc,p)=>acc+p.selectedMarket.conf,0)/picks.length);
+  const combined  = Math.round(picks.reduce((a,p)=>a*p.selectedMarket.conf/100,1)*100);
   const today     = new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
 
-  document.getElementById('couponHero').innerHTML = `
+  document.getElementById('couponHero').innerHTML=`
   <div class="coupon-hero-inner">
     <div class="coupon-date"><i class="fas fa-calendar"></i> ${today}</div>
     <div class="coupon-hero-stats">
@@ -509,9 +499,8 @@ function generateCoupon(predictions) {
     <div class="coupon-hero-badge"><i class="fas fa-robot"></i> ${avgConf>=75?'Yüksek Güvenli Kupon':'Orta Güvenli Kupon'}</div>
   </div>`;
 
-  document.getElementById('couponMatches').innerHTML = picks.map((p,i) => {
-    const diff    = difficultyInfo(p.difficulty);
-    const confCls = p.selectedMarket.conf>=75?'conf-green':p.selectedMarket.conf>=60?'conf-yellow':'conf-red';
+  document.getElementById('couponMatches').innerHTML=picks.map((p,i)=>{
+    const diff=difficultyInfo(p.difficulty), confCls=p.selectedMarket.conf>=75?'conf-green':p.selectedMarket.conf>=60?'conf-yellow':'conf-red';
     return `
     <div class="coupon-match-card ai-card-${p.difficulty}">
       <div class="coupon-num">${i+1}</div>
@@ -536,46 +525,51 @@ function generateCoupon(predictions) {
 
 // ===== ORAN KIYASLAMA =====
 function bestWorst(vals) {
-  const nums = vals.map(Number);
-  const max = Math.max(...nums), min = Math.min(...nums);
-  return { max, min, diff: ((max-min)/min*100).toFixed(1) };
+  const nums=vals.map(Number), max=Math.max(...nums), min=Math.min(...nums);
+  return { max, min, diff:((max-min)/min*100).toFixed(1) };
 }
-
 function renderCompare(data) {
-  const tbody     = document.getElementById('compareTableBody');
-  const platforms = ['nesine','bilyoner','misli','bets10'];
-  tbody.innerHTML = data.map(r => {
-    const fields = ['h','d','a'];
-    let maxDiff  = 0;
-    fields.forEach(f => {
-      const diff = parseFloat(bestWorst(platforms.map(p => r[p][f])).diff);
-      if (diff > maxDiff) maxDiff = diff;
-    });
-    const diffCls = maxDiff>=5?'diff-high':maxDiff>=2?'diff-mid':'diff-low';
-    let cells = '';
-    platforms.forEach(p => {
-      fields.forEach(f => {
-        const vals = platforms.map(pl => parseFloat(r[pl][f]));
-        const max  = Math.max(...vals), min = Math.min(...vals);
-        const v    = parseFloat(r[p][f]);
-        cells += `<td class="${v===max?'best-odd':v===min?'worst-odd':''}">${r[p][f]}</td>`;
-      });
-    });
+  const tbody=document.getElementById('compareTableBody'), platforms=['nesine','bilyoner','misli','bets10'];
+  tbody.innerHTML=data.map(r=>{
+    const fields=['h','d','a']; let maxDiff=0;
+    fields.forEach(f=>{ const d=parseFloat(bestWorst(platforms.map(p=>r[p][f])).diff); if(d>maxDiff)maxDiff=d; });
+    const diffCls=maxDiff>=5?'diff-high':maxDiff>=2?'diff-mid':'diff-low';
+    let cells='';
+    platforms.forEach(p=>{ fields.forEach(f=>{ const vals=platforms.map(pl=>parseFloat(r[pl][f])), max=Math.max(...vals), min=Math.min(...vals), v=parseFloat(r[p][f]); cells+=`<td class="${v===max?'best-odd':v===min?'worst-odd':''}">${r[p][f]}</td>`; }); });
     return `<tr data-league="${r.leagueKey}">
       <td class="compare-match-name"><strong>${r.home} vs ${r.away}</strong><small>${r.league}</small></td>
-      ${cells}
-      <td><span class="diff-badge ${diffCls}">%${maxDiff}</span></td>
+      ${cells}<td><span class="diff-badge ${diffCls}">%${maxDiff}</span></td>
     </tr>`;
   }).join('');
 }
-
 function filterCompare() {
-  const q  = document.getElementById('compareSearch').value.toLowerCase();
-  const lg = document.getElementById('compareLeague').value;
-  renderCompare(COMPARE_DATA.filter(r => (r.home+' '+r.away).toLowerCase().includes(q) && (lg==='all'||r.leagueKey===lg)));
+  const q=document.getElementById('compareSearch').value.toLowerCase(), lg=document.getElementById('compareLeague').value;
+  renderCompare(COMPARE_DATA.filter(r=>(r.home+' '+r.away).toLowerCase().includes(q)&&(lg==='all'||r.leagueKey===lg)));
+}
+
+// ===== TEMA =====
+function toggleTheme() {
+  const html=document.documentElement, isDark=html.getAttribute('data-theme')!=='light';
+  html.setAttribute('data-theme', isDark?'light':'dark');
+  localStorage.setItem('oa_theme', isDark?'light':'dark');
+  const btn=document.getElementById('themeToggle');
+  if (btn) btn.innerHTML=isDark?'<i class="fas fa-sun"></i>':'<i class="fas fa-moon"></i>';
+}
+function applyTheme() {
+  const saved=localStorage.getItem('oa_theme')||'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn=document.getElementById('themeToggle');
+  if (btn) btn.innerHTML=saved==='light'?'<i class="fas fa-sun"></i>':'<i class="fas fa-moon"></i>';
+}
+
+// ===== MOBİL NAV =====
+function setMobileNav(el) {
+  document.querySelectorAll('.mobile-nav-item').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
 }
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
+  applyTheme();
   if (document.getElementById('dashUserName')) initDashboard();
 });
