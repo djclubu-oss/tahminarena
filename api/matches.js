@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const now = new Date();
   const istanbul = new Date(now.getTime() + 3 * 60 * 60 * 1000);
   const today = istanbul.toISOString().split('T')[0];
-  const season = istanbul.getFullYear();
+    const season = 2024;
   const leagueIds = [203, 39, 140, 78, 135, 61, 2, 3, 88, 94, 848];
 
   const LEAGUE_META = {
