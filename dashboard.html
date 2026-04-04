@@ -56,6 +56,9 @@
     </div>
   </aside>
 
+  <!-- Sidebar Overlay (mobil) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
   <!-- Main Content -->
   <div class="dash-content">
 
@@ -65,12 +68,13 @@
       <div class="topbar-title" id="sectionTitle">Canlı Maçlar</div>
       <div class="topbar-right">
         <div class="live-badge"><i class="fas fa-circle"></i> CANLI</div>
-                <div class="clock" id="clock"></div>
+        <div class="clock" id="clock"></div>
         <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Tema Değiştir">
           <i class="fas fa-moon"></i>
         </button>
       </div>
     </div>
+
     <!-- Mobil Alt Navigasyon -->
     <div class="mobile-nav">
       <div class="mobile-nav-items">
@@ -91,7 +95,7 @@
         </button>
       </div>
     </div>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <!-- Stat Cards -->
     <div class="stat-cards">
       <div class="stat-card">
@@ -111,8 +115,6 @@
         <div><div class="stat-num">-</div><div class="stat-label">Tahmin Başarısı</div></div>
       </div>
     </div>
-
-    <!-- Sections -->
 
     <!-- CANLI MAÇLAR -->
     <section class="section" id="sec-live">
