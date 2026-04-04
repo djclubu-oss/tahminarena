@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OranAnalizim - Giriş</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body class="auth-body">
+
+  <!-- Header -->
+  <header class="auth-header">
+    <div class="logo">
+      <i class="fas fa-chart-line"></i>
+      <span>OranAnalizim</span>
+    </div>
+    <nav class="auth-nav">
+      <a href="index.html" class="active">Giriş Yap</a>
+      <a href="register.html">Kayıt Ol</a>
+    </nav>
+  </header>
+
+  <!-- Auth Container -->
+  <main class="auth-main">
+    <div class="auth-card" id="loginForm">
+      <div class="auth-icon">
+        <i class="fas fa-user-circle"></i>
+      </div>
+      <h2>Tekrar Hoş Geldiniz!</h2>
+      <p class="auth-sub">Hesabınıza giriş yaparak analiz yapmaya başlayın</p>
+
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label><i class="fas fa-envelope"></i> E-posta Adresi</label>
+          <input type="email" id="loginEmail" placeholder="ornek@email.com" required/>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-lock"></i> Şifre</label>
+          <div class="pass-wrap">
+            <input type="password" id="loginPass" placeholder="Şifrenizi girin" required/>
+            <span class="toggle-pass" onclick="togglePass('loginPass', this)"><i class="fas fa-eye"></i></span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="check-label">
+            <input type="checkbox" id="remember"/> Beni Hatırla
+          </label>
+          <a href="#" class="forgot-link">Şifremi Unuttum?</a>
+        </div>
+        <div class="error-msg" id="loginError"></div>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-sign-in-alt"></i> Giriş Yap
+        </button>
+      </form>
+
+      <p class="auth-footer">Hesabın yok mu? <a href="register.html">Hemen Kayıt Ol</a></p>
+    </div>
+
+    <!-- Özellikler -->
+    <div class="features-grid">
+      <div class="feature-card">
+        <i class="fas fa-bolt"></i>
+        <h4>Canlı Oranlar</h4>
+        <p>Maç oranlarını anlık takip et</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-chart-bar"></i>
+        <h4>İstatistik</h4>
+        <p>Detaylı grafik analizleri</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-brain"></i>
+        <h4>Akıllı Analiz</h4>
+        <p>Nesine verileriyle gelişmiş tahmin</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-shield-alt"></i>
+        <h4>Güvenli</h4>
+        <p>Verileriniz şifreli ve güvende</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
