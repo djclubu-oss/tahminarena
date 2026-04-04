@@ -65,10 +65,33 @@
       <div class="topbar-title" id="sectionTitle">Canlı Maçlar</div>
       <div class="topbar-right">
         <div class="live-badge"><i class="fas fa-circle"></i> CANLI</div>
-        <div class="clock" id="clock"></div>
+                <div class="clock" id="clock"></div>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Tema Değiştir">
+          <i class="fas fa-moon"></i>
+        </button>
       </div>
     </div>
-
+    <!-- Mobil Alt Navigasyon -->
+    <div class="mobile-nav">
+      <div class="mobile-nav-items">
+        <button class="mobile-nav-item active" onclick="showSection('live');setMobileNav(this)">
+          <i class="fas fa-circle live-dot"></i><span>Canlı</span>
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('upcoming');setMobileNav(this)">
+          <i class="fas fa-calendar-alt"></i><span>Maçlar</span>
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('ai');setMobileNav(this)">
+          <i class="fas fa-robot"></i><span>YZ</span>
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('coupon');setMobileNav(this)">
+          <i class="fas fa-ticket-alt"></i><span>Kupon</span>
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('odds');setMobileNav(this)">
+          <i class="fas fa-percent"></i><span>Oranlar</span>
+        </button>
+      </div>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
     <!-- Stat Cards -->
     <div class="stat-cards">
       <div class="stat-card">
