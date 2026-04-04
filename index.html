@@ -8,18 +8,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body class="auth-body">
-
   <header class="auth-header">
     <div class="logo">
       <i class="fas fa-chart-line"></i>
       <span>TahminArena</span>
     </div>
     <nav class="auth-nav">
-      <a href="index.html" class="active">Giriş Yap</a>
-      <a href="register.html">Kayıt Ol</a>
+      <a href="/index.html" class="active">Giriş Yap</a>
+      <a href="/register.html">Kayıt Ol</a>
     </nav>
   </header>
-
   <main class="auth-main">
     <div class="auth-card" id="loginForm">
       <div class="auth-icon">
@@ -27,7 +25,6 @@
       </div>
       <h2>Tekrar Hoş Geldiniz!</h2>
       <p class="auth-sub">Hesabınıza giriş yaparak analiz yapmaya başlayın</p>
-
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
           <label><i class="fas fa-envelope"></i> E-posta Adresi</label>
@@ -51,10 +48,8 @@
           <i class="fas fa-sign-in-alt"></i> Giriş Yap
         </button>
       </form>
-
-      <p class="auth-footer">Hesabın yok mu? <a href="register.html">Hemen Kayıt Ol</a></p>
+      <p class="auth-footer">Hesabın yok mu? <a href="/register.html">Hemen Kayıt Ol</a></p>
     </div>
-
     <div class="features-grid">
       <div class="feature-card">
         <i class="fas fa-bolt"></i>
@@ -69,7 +64,7 @@
       <div class="feature-card">
         <i class="fas fa-brain"></i>
         <h4>Akıllı Analiz</h4>
-        <p>Yapay zeka destekli tahmin</p>
+        <p>YZ destekli tahmin sistemi</p>
       </div>
       <div class="feature-card">
         <i class="fas fa-shield-alt"></i>
@@ -78,7 +73,6 @@
       </div>
     </div>
   </main>
-
   <script src="/js/app.js"></script>
 </body>
 </html>
