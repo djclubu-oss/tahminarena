@@ -7,49 +7,38 @@ export default async function handler(req, res) {
   const now = new Date();
   const istanbul = new Date(now.getTime() + 3 * 60 * 60 * 1000);
   const today = istanbul.toISOString().split('T')[0];
-    const season = 2024;
-  const leagueIds = [203, 39, 140, 78, 135, 61, 2, 3, 88, 94, 848];
+  const season = 2024;
 
-  const LEAGUE_META = {
-    203: { name: 'Süper Lig',        flag: '🇹🇷' },
-    39:  { name: 'Premier Lig',      flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-    140: { name: 'La Liga',          flag: '🇪🇸' },
-    78:  { name: 'Bundesliga',       flag: '🇩🇪' },
-    135: { name: 'Serie A',          flag: '🇮🇹' },
-    61:  { name: 'Ligue 1',          flag: '🇫🇷' },
-    2:   { name: 'Şampiyonlar Ligi', flag: '🇪🇺' },
-    3:   { name: 'Avrupa Ligi',      flag: '🇪🇺' },
-    88:  { name: 'Eredivisie',       flag: '🇳🇱' },
-    94:  { name: 'Primeira Liga',    flag: '🇵🇹' },
-    848: { name: 'Konferans Ligi',   flag: '🇪🇺' },
-  };
+  const leagues = [
+    { id: 203, name: 'Süper Lig',        flag: '🇹🇷' },
+    { id: 39,  name: 'Premier Lig',      flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { id: 140, name: 'La Liga',          flag: '🇪🇸' },
+    { id: 78,  name: 'Bundesliga',       flag: '🇩🇪' },
+    { id: 135, name: 'Serie A',          flag: '🇮🇹' },
+    { id: 61,  name: 'Ligue 1',          flag: '🇫🇷' },
+    { id: 2,   name: 'Şampiyonlar Ligi', flag: '🇪🇺' },
+    { id: 3,   name: 'Avrupa Ligi',      flag: '🇪🇺' },
+    { id: 88,  name: 'Eredivisie',       flag: '🇳🇱' },
+    { id: 94,  name: 'Primeira Liga',    flag: '🇵🇹' },
+  ];
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  async function fetchLeague(lg) {
+    const r = await fetch(
+      `https://v3.football.api-sports.io/fixtures?league=${lg.id}&season=${season}&date=${today}`,
+      { headers: { 'x-apisports-key': key } }
+    );
+    return { lg, data: await r.json() };
+  }
 
   try {
-    const results = await Promise.allSettled(
-      leagueIds.map(lid =>
-        fetch(`https://v3.football.api-sports.io/fixtures?league=${lid}&season=${season}&date=${today}`, {
-          headers: { 'x-apisports-key': key },
-        }).then(r => r.json())
-      )
-    );
-
     let live = [], upcoming = [], finished = [];
-    const apiErrors = [];
 
-    results.forEach((result, i) => {
-      if (result.status !== 'fulfilled') {
-        apiErrors.push({ league: leagueIds[i], error: result.reason?.message });
-        return;
-      }
-      const val = result.value;
-      if (val.errors && Object.keys(val.errors).length > 0) {
-        apiErrors.push({ league: leagueIds[i], error: val.errors });
-        return;
-      }
-      const fixtures = val?.response || [];
-      const lid = leagueIds[i];
-      const meta = LEAGUE_META[lid] || { name: 'Diğer', flag: '⚽' };
-
+    for (let i = 0; i < leagues.length; i++) {
+      if (i > 0) await sleep(7000);
+      const { lg, data } = await fetchLeague(leagues[i]);
+      const fixtures = data?.response || [];
       fixtures.forEach(f => {
         const match = {
           id: f.fixture.id,
@@ -59,18 +48,17 @@ export default async function handler(req, res) {
           awayTeam: { name: f.teams.away.name, shortName: f.teams.away.name },
           score: { fullTime: { home: f.goals.home, away: f.goals.away } },
           minute: f.fixture.status.elapsed,
-          competition: { code: String(lid), name: meta.name, flag: meta.flag },
+          competition: { code: String(lg.id), name: lg.name, flag: lg.flag },
         };
-
         const s = f.fixture.status.short;
         if (['1H','2H','HT','ET','BT','P'].includes(s)) live.push(match);
         else if (['FT','AET','PEN'].includes(s)) finished.push(match);
         else upcoming.push(match);
       });
-    });
+    }
 
-    res.setHeader('Cache-Control', 'no-store');
-    return res.json({ live, upcoming, finished, date: today, apiErrors });
+    res.setHeader('Cache-Control', 's-maxage=900');
+    return res.json({ live, upcoming, finished, date: today });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
