@@ -9,8 +9,12 @@ function savePicks() {
   localStorage.setItem('oa_picks', JSON.stringify(userPicks));
 }
 
+// HER MAÇ BAĞIMSIZ SEÇİLECEK
 function selectPick(matchId, pickType, odds, matchData) {
+  // Bu maçın eski seçimini kaldır
   userPicks = userPicks.filter(p => p.id !== matchId);
+  
+  // Yeni seçimi ekle
   userPicks.push({
     id: matchId,
     home: matchData.home,
@@ -21,8 +25,14 @@ function selectPick(matchId, pickType, odds, matchData) {
     selected: pickType,
     odds: parseFloat(odds)
   });
+  
   savePicks();
-  updatePickButtons();
+  
+  // Sadece bu maçın butonlarını güncelle
+  document.querySelectorAll(`.odds-select-btn[data-match-id="${matchId}"]`).forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.pick === pickType);
+  });
+  
   updatePicksBadge();
 }
 
@@ -55,6 +65,84 @@ function updatePicksBadge() {
   }
 }
 
+// ===== YZ GÜNLÜK KUPON =====
+function generateAICoupon() {
+  const container = document.getElementById('couponContent');
+  if (!container) return;
+  
+  // API'den gelen maçları al
+  const allMatches = window.currentMatches || [];
+  if (allMatches.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><p>Henüz maç verisi yok.</p></div>';
+    return;
+  }
+  
+  // YZ Analizi: Düşük oran = yüksek güven
+  // En düşük oranlı 2-3 maçı seç
+  const analyzedMatches = allMatches.map(m => {
+    const odds1 = parseFloat(m.odds?.home || 1.80);
+    const oddsX = parseFloat(m.odds?.draw || 3.40);
+    const odds2 = parseFloat(m.odds?.away || 4.20);
+    
+    // En düşük oranı bul
+    const minOdds = Math.min(odds1, oddsX, odds2);
+    let selected = '1';
+    if (minOdds === oddsX) selected = 'X';
+    else if (minOdds === odds2) selected = '2';
+    
+    return {
+      ...m,
+      selected,
+      odds: minOdds,
+      confidence: minOdds < 2.0 ? 'Yüksek' : minOdds < 3.0 ? 'Orta' : 'Düşük'
+    };
+  }).sort((a, b) => a.odds - b.odds).slice(0, 3); // En iyi 3 maç
+  
+  // Kuponu kaydet
+  const today = new Date().toISOString().split('T')[0];
+  const coupon = {
+    date: today,
+    matches: analyzedMatches,
+    totalOdds: analyzedMatches.reduce((acc, m) => acc * m.odds, 1).toFixed(2)
+  };
+  localStorage.setItem('ai_coupon_' + today, JSON.stringify(coupon));
+  
+  // Göster
+  container.innerHTML = `
+    <div class="coupon-hero">
+      <div class="coupon-date"><i class="fas fa-calendar"></i> ${new Date().toLocaleDateString('tr-TR')}</div>
+      <div class="coupon-hero-stats">
+        <div class="coupon-stat">
+          <div class="coupon-stat-val">${coupon.totalOdds}</div>
+          <div class="coupon-stat-label">Toplam Oran</div>
+        </div>
+        <div class="coupon-stat">
+          <div class="coupon-stat-val">${analyzedMatches.length}</div>
+          <div class="coupon-stat-label">Maç</div>
+        </div>
+      </div>
+      <div class="coupon-hero-badge"><i class="fas fa-robot"></i> YZ Analizi</div>
+    </div>
+    ${analyzedMatches.map((m, i) => `
+      <div class="coupon-match-card">
+        <div class="coupon-num">${i+1}</div>
+        <div class="coupon-match-body">
+          <div class="coupon-match-league">${m.league?.name || 'Lig'}</div>
+          <div class="coupon-match-name">${m.teams?.home?.name} <span>vs</span> ${m.teams?.away?.name}</div>
+          <div class="coupon-pick-row">
+            <span class="coupon-pick-label">YZ Seçimi: ${m.selected}</span>
+            <span class="coupon-pick-odd">@${m.odds}</span>
+            <span class="coupon-pick-conf">${m.confidence} Güven</span>
+          </div>
+        </div>
+      </div>
+    `).join('')}
+    <div class="coupon-disclaimer">
+      <i class="fas fa-info-circle"></i> Bu kupon yapay zeka tarafından analiz edilerek oluşturulmuştur.
+    </div>
+  `;
+}
+
 // ===== API'DEN MAÇ ÇEK =====
 async function loadMatches() {
   const liveEl = document.getElementById('liveMatches');
@@ -79,6 +167,7 @@ async function loadMatches() {
     
     const data = await response.json();
     const matches = data.response || [];
+    window.currentMatches = matches; // YZ kupon için kaydet
     
     const live = matches.filter(m => ['1H','HT','2H','ET','P','LIVE'].includes(m.fixture.status.short));
     const upcoming = matches.filter(m => ['NS','TBD'].includes(m.fixture.status.short));
@@ -106,6 +195,9 @@ async function loadMatches() {
     
     updatePickButtons();
     updatePicksBadge();
+    
+    // YZ Kuponu otomatik oluştur
+    generateAICoupon();
     
   } catch (err) {
     liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p></div>`;
@@ -201,7 +293,6 @@ function renderPicks() {
     container.innerHTML = `<div class="empty-state">
       <i class="fas fa-crosshairs"></i>
       <p>Henüz maç seçmediniz.</p>
-      <small>Maçlardan 1, X veya 2 seçerek kuponunuzu oluşturun.</small>
     </div>`;
     if (totalEl) totalEl.innerHTML = '';
     return;
@@ -225,7 +316,6 @@ function renderPicks() {
       <div class="match-league"><span class="league-flag">${p.flag}</span>${p.league}</div>
       <div class="match-teams">
         <div class="teams">${p.home} <span style="color:var(--text-muted)">vs</span> ${p.away}</div>
-        <div class="match-time">${p.time}</div>
       </div>
       <div class="picks-pick-badge">
         <i class="fas fa-check-circle"></i> ${p.selected} @ ${p.odds}
@@ -303,7 +393,7 @@ const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','co
 const TITLES = {
   live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
   upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
-  ai:'YZ Tahmin', coupon:'Günlük YZ Kuponu', compare:'Oran Karşılaştırma',
+  ai:'YZ Tahmin', coupon:'Günlük Kupon', compare:'Oran Karşılaştırma',
   picks:'Seçimlerim', premium:'Premium Kupon'
 };
 
@@ -319,6 +409,7 @@ function showSection(key) {
     el.classList.toggle('active', onclick.includes(`'${key}'`));
   });
   if (key === 'picks') renderPicks();
+  if (key === 'coupon') generateAICoupon();
 }
 
 function toggleSidebar() {
