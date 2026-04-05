@@ -1,3 +1,11 @@
+// ===== TOGGLE PASSWORD =====
+function togglePass(id, el) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+}
+
 // ===== API CONFIG =====
 const API_BASE = 'https://v3.football.api-sports.io';
 const API_KEY = 'e8287b49fa0bb657f2b4582bb13a496e';
@@ -55,159 +63,17 @@ function updatePicksBadge() {
   if (badge) badge.textContent = userPicks.length > 0 ? userPicks.length : '';
 }
 
-// ===== YZ DETAYLI ANALİZ =====
-async function analyzeMatchWithAI(fixtureId, homeTeamId, awayTeamId) {
-  try {
-    const [homeStats, awayStats, h2h] = await Promise.all([
-      fetch(`${API_BASE}/teams/statistics?team=${homeTeamId}&season=2024`, {
-        headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' }
-      }).then(r => r.json()),
-      fetch(`${API_BASE}/teams/statistics?team=${awayTeamId}&season=2024`, {
-        headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' }
-      }).then(r => r.json()),
-      fetch(`${API_BASE}/fixtures/headtohead?h2h=${homeTeamId}-${awayTeamId}`, {
-        headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' }
-      }).then(r => r.json())
-    ]);
-
-    const home = homeStats.response || {};
-    const away = awayStats.response || {};
-    const h2hMatches = h2h.response || [];
-
-    const homeForm = home.form ? home.form.slice(-5) : '';
-    const awayForm = away.form ? away.form.slice(-5) : '';
-    const homeGoals = home.goals?.for?.average?.total || 0;
-    const awayGoals = away.goals?.for?.average?.total || 0;
-    const homeBTTS = home.fixtures?.played?.total ? 
-      (home.goals?.for?.total + home.goals?.against?.total) / home.fixtures.played.total : 0;
-    
-    let h2hHomeWins = 0, h2hDraws = 0, h2hAwayWins = 0;
-    h2hMatches.slice(0, 5).forEach(m => {
-      if (m.teams.home.winner) h2hHomeWins++;
-      else if (m.teams.away.winner) h2hAwayWins++;
-      else h2hDraws++;
-    });
-
-    let homeScore = 0, awayScore = 0;
-    homeScore += (homeForm.match(/W/g) || []).length * 10;
-    awayScore += (awayForm.match(/W/g) || []).length * 10;
-    homeScore += parseFloat(homeGoals) * 5;
-    awayScore += parseFloat(awayGoals) * 5;
-    homeScore += 15;
-    homeScore += h2hHomeWins * 5;
-    awayScore += h2hAwayWins * 5;
-    
-    const bttsChance = (homeBTTS + awayGoals) / 2 > 2.5 ? 'Yüksek' : 'Orta';
-    const goalPrediction = (parseFloat(homeGoals) + parseFloat(awayGoals)) / 2;
-    const overUnder = goalPrediction > 2.5 ? 'Üst 2.5' : 'Alt 2.5';
-    
-    let bestPick = '1', bestOdds = 1.80, confidence = 'Orta';
-    if (homeScore > awayScore + 20) {
-      bestPick = '1';
-      bestOdds = 1.70;
-      confidence = homeScore > awayScore + 40 ? 'Yüksek' : 'Orta';
-    } else if (awayScore > homeScore + 20) {
-      bestPick = '2';
-      bestOdds = 3.50;
-      confidence = awayScore > homeScore + 40 ? 'Yüksek' : 'Orta';
-    } else {
-      bestPick = 'X';
-      bestOdds = 3.40;
-      confidence = 'Orta';
-    }
-
-    return {
-      bestPick, bestOdds, confidence, btts: bttsChance, overUnder,
-      homeScore: Math.round(homeScore), awayScore: Math.round(awayScore),
-      analysis: `Form: ${homeForm} vs ${awayForm} | Gol: ${homeGoals} vs ${awayGoals} | H2H: ${h2hHomeWins}-${h2hDraws}-${h2hAwayWins}`
-    };
-  } catch (err) {
-    return { bestPick: '1', bestOdds: 1.80, confidence: 'Orta', btts: 'Orta', overUnder: 'Üst 2.5', homeScore: 50, awayScore: 50, analysis: 'Varsayılan analiz' };
-  }
-}
-
-// ===== YZ GÜNLÜK KUPON =====
-async function generateAICoupon() {
-  const container = document.getElementById('couponContent');
-  if (!container) return;
+// ===== ZAMAN DİLİMİNE GÖRE LİGLER =====
+function getActiveLeaguesByTime() {
+  const hour = new Date().getHours();
   
-  container.innerHTML = '<div class="loading-state"><i class="fas fa-robot fa-spin"></i> YZ analiz ediyor...</div>';
-  
-  try {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateStr = tomorrow.toISOString().split('T')[0];
-    
-    const response = await fetch(`${API_BASE}/fixtures?date=${dateStr}&timezone=Europe/Istanbul`, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': API_KEY,
-        'x-rapidapi-host': 'v3.football.api-sports.io'
-      }
-    });
-    
-    if (!response.ok) throw new Error('API Hatası');
-    
-    const data = await response.json();
-    const matches = data.response || [];
-    
-    if (matches.length === 0) {
-      container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Yarın için maç bulunamadı.</p></div>';
-      return;
-    }
-    
-    const analyzedMatches = [];
-    for (let i = 0; i < Math.min(5, matches.length); i++) {
-      const m = matches[i];
-      const analysis = await analyzeMatchWithAI(m.fixture.id, m.teams.home.id, m.teams.away.id);
-      analyzedMatches.push({ ...m, analysis });
-    }
-    
-    const selectedMatches = analyzedMatches
-      .sort((a, b) => (b.analysis.homeScore + b.analysis.awayScore) - (a.analysis.homeScore + a.analysis.awayScore))
-      .slice(0, 3);
-    
-    const coupon = {
-      date: dateStr,
-      matches: selectedMatches,
-      totalOdds: selectedMatches.reduce((acc, m) => acc * m.analysis.bestOdds, 1).toFixed(2)
-    };
-    localStorage.setItem('ai_coupon_' + dateStr, JSON.stringify(coupon));
-    
-    container.innerHTML = `
-      <div class="coupon-hero">
-        <div class="coupon-date"><i class="fas fa-calendar"></i> ${tomorrow.toLocaleDateString('tr-TR')}</div>
-        <div class="coupon-hero-stats">
-          <div class="coupon-stat"><div class="coupon-stat-val">${coupon.totalOdds}</div><div class="coupon-stat-label">Toplam Oran</div></div>
-          <div class="coupon-stat"><div class="coupon-stat-val">${selectedMatches.length}</div><div class="coupon-stat-label">Maç</div></div>
-        </div>
-        <div class="coupon-hero-badge"><i class="fas fa-robot"></i> YZ Detaylı Analiz</div>
-      </div>
-      ${selectedMatches.map((m, i) => `
-        <div class="coupon-match-card">
-          <div class="coupon-num">${i+1}</div>
-          <div class="coupon-match-body">
-            <div class="coupon-match-league">${m.league?.name || 'Lig'}</div>
-            <div class="coupon-match-name">${m.teams?.home?.name} <span>vs</span> ${m.teams?.away?.name}</div>
-            <div class="coupon-pick-row">
-              <span class="coupon-pick-label">YZ: ${m.analysis.bestPick}</span>
-              <span class="coupon-pick-odd">@${m.analysis.bestOdds}</span>
-              <span class="coupon-pick-conf">${m.analysis.confidence} Güven</span>
-            </div>
-            <div class="coupon-extra-stats" style="font-size: .75rem; color: var(--text-muted); margin-top: 6px;">
-              KG: ${m.analysis.btts} | Gol: ${m.analysis.overUnder} | Skor: ${m.analysis.homeScore}-${m.analysis.awayScore}
-            </div>
-          </div>
-        </div>
-      `).join('')}
-      <div class="coupon-disclaimer">
-        <i class="fas fa-info-circle"></i> Bu kupon yapay zeka tarafından form, gol, KG ve H2H istatistikleri analiz edilerek oluşturulmuştur.
-      </div>
-    `;
-    
-  } catch (err) {
-    container.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p></div>`;
+  // 14:00 - 00:00: Avrupa + Türkiye
+  if (hour >= 14 || hour < 0) {
+    return [203, 135, 39, 140, 78]; // Süper Lig, Serie A, Premier, La Liga, Bundesliga
   }
+  
+  // 00:00 - 14:00: Güney Amerika + Asya
+  return [71, 128, 262, 255, 98, 292]; // Brezilya, Arjantin, Meksika, MLS, J-League, K-League
 }
 
 // ===== API'DEN MAÇ ÇEK =====
@@ -222,23 +88,31 @@ async function loadMatches() {
   
   try {
     const today = new Date().toISOString().split('T')[0];
-    const response = await fetch(`${API_BASE}/fixtures?date=${today}&timezone=Europe/Istanbul`, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': API_KEY,
-        'x-rapidapi-host': 'v3.football.api-sports.io'
-      }
+    const activeLeagues = getActiveLeaguesByTime();
+    
+    // Tüm istekleri paralel yap
+    const requests = activeLeagues.map(leagueId => 
+      fetch(`${API_BASE}/fixtures?date=${today}&league=${leagueId}&timezone=Europe/Istanbul`, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': API_KEY,
+          'x-rapidapi-host': 'v3.football.api-sports.io'
+        }
+      }).then(r => r.json()).catch(() => ({ response: [] }))
+    );
+    
+    const results = await Promise.all(requests);
+    let allMatches = [];
+    results.forEach(data => {
+      if (data.response) allMatches = allMatches.concat(data.response);
     });
     
-    if (!response.ok) throw new Error('API Hatası');
+    window.currentMatches = allMatches;
     
-    const data = await response.json();
-    const matches = data.response || [];
-    window.currentMatches = matches;
-    
-    const live = matches.filter(m => ['1H','HT','2H','ET','P','LIVE'].includes(m.fixture.status.short));
-    const upcoming = matches.filter(m => ['NS','TBD'].includes(m.fixture.status.short));
-    const finished = matches.filter(m => ['FT','AET','PEN'].includes(m.fixture.status.short));
+    // Canlı ve yaklaşan maçları ayır
+    const live = allMatches.filter(m => ['1H','HT','2H','ET','P','LIVE'].includes(m.fixture.status.short));
+    const upcoming = allMatches.filter(m => ['NS','TBD'].includes(m.fixture.status.short));
+    const finished = allMatches.filter(m => ['FT','AET','PEN'].includes(m.fixture.status.short));
     
     if (document.getElementById('liveCount')) {
       document.getElementById('liveCount').textContent = live.length;
@@ -341,7 +215,8 @@ function getLeagueFlag(country) {
   const flags = {
     'Turkey': '🇹🇷', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Spain': '🇪🇸', 'Germany': '🇩🇪',
     'Italy': '🇮🇹', 'France': '🇫🇷', 'Netherlands': '🇳🇱', 'Portugal': '🇵🇹',
-    'Brazil': '🇧🇷', 'USA': '🇺🇸'
+    'Brazil': '🇧🇷', 'USA': '🇺🇸', 'Argentina': '🇦🇷', 'Mexico': '🇲🇽',
+    'Japan': '🇯🇵', 'South Korea': '🇰🇷'
   };
   return flags[country] || '⚽';
 }
@@ -466,12 +341,6 @@ function logout() {
   localStorage.removeItem('oa_session');
 }
 
-function togglePass(id, el) {
-  const inp = document.getElementById(id);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-}
-
 function initDashboard() {
   const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
   if (!session) { window.location.href = 'index.html'; return; }
@@ -527,7 +396,6 @@ function showSection(key) {
     el.classList.toggle('active', onclick.includes(`'${key}'`));
   });
   if (key === 'picks') renderPicks();
-  if (key === 'coupon') generateAICoupon();
 }
 
 function toggleSidebar() {
