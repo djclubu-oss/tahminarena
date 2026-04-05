@@ -68,9 +68,9 @@
   <div class="dash-content">
 
     <!-- API Key Banner -->
-    <div class="api-banner" id="apiBanner">
+    <div class="api-banner hidden" id="apiBanner">
       <i class="fas fa-key"></i>
-      <span>Gerçek maç verileri için football-data.org API anahtarınızı girin:</span>
+      <span>Gerçek maç verileri için API anahtarınızı girin:</span>
       <input type="text" id="apiKeyInput" placeholder="API anahtarınızı buraya yapıştırın..." />
       <button onclick="saveApiKey()"><i class="fas fa-check"></i> Kaydet ve Yükle</button>
       <button class="btn-skip" onclick="skipApiKey()">Şimdilik Geç</button>
@@ -195,11 +195,8 @@
           <i class="fas fa-sync-alt"></i> Yeniden Üret
         </button>
       </div>
-      <!-- Kupon Özeti -->
       <div class="coupon-hero" id="couponHero"></div>
-      <!-- Kupon Maçları -->
       <div id="couponMatches"></div>
-      <!-- Açıklama -->
       <div class="coupon-disclaimer">
         <i class="fas fa-info-circle"></i>
         Bu kupon yapay zeka modeli tarafından günlük analiz edilerek oluşturulmuştur.
@@ -231,7 +228,6 @@
           <button class="ftab" onclick="filterAI('medium', this)">Orta Güven</button>
         </div>
       </div>
-      <!-- Model Banner -->
       <div class="ai-model-banner">
         <div class="ai-model-stat">
           <i class="fas fa-brain"></i>
