@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TahminArena - Admin Panel</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    .admin-body { display:flex; flex-direction:column; min-height:100vh; background:var(--bg-dark); }
+    .admin-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 32px; background:var(--bg-card); border-bottom:1px solid var(--border);
+    }
+    .admin-header .logo { color:var(--accent); font-size:1.2rem; font-weight:700; display:flex; align-items:center; gap:10px; }
+    .admin-badge { background:rgba(239,68,68,.15); color:var(--red); padding:4px 12px; border-radius:20px; font-size:.8rem; font-weight:700; }
+    .admin-main { max-width:900px; margin:40px auto; width:100%; padding:0 16px; }
+    .admin-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:28px; margin-bottom:24px; }
+    .admin-card h2 { font-size:1.1rem; margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+    .user-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 16px; background:var(--bg-dark); border-radius:var(--radius);
+      margin-bottom:10px; flex-wrap:wrap; gap:10px;
+    }
+    .user-row-info { display:flex; align-items:center; gap:12px; }
+    .user-row-info i { font-size:1.5rem; color:var(--text-muted); }
+    .user-row-name { font-weight:600; font-size:.9rem; }
+    .user-row-email { font-size:.8rem; color:var(--text-muted); }
+    .premium-tag { background:rgba(245,158,11,.15); color:var(--accent); padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:700; display:flex; align-items:center; gap:5px; }
+    .btn-make-premium {
+      padding:7px 16px; background:linear-gradient(135deg,#d97706,#f59e0b);
+      color:#000; border:none; border-radius:8px; cursor:pointer; font-size:.82rem; font-weight:700; transition:opacity .2s;
+    }
+    .btn-make-premium:hover { opacity:.85; }
+    .btn-remove-premium { padding:7px 16px; background:rgba(239,68,68,.15); color:var(--red); border:1px solid var(--red); border-radius:8px; cursor:pointer; font-size:.82rem; font-weight:600; transition:all .2s; }
+    .btn-remove-premium:hover { background:rgba(239,68,68,.3); }
+    .admin-login-overlay {
+      position:fixed; inset:0; background:var(--bg-dark);
+      display:flex; align-items:center; justify-content:center; z-index:999;
+    }
+    .admin-login-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:40px; width:100%; max-width:400px; }
+    .admin-login-card h2 { text-align:center; margin-bottom:24px; color:var(--red); }
+    .empty-users { text-align:center; padding:40px; color:var(--text-muted); }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- GİRİŞ OVERLAY (sadece admin değilse) -->
+  <div class="admin-login-overlay" id="adminLoginOverlay">
+    <div class="admin-login-card">
+      <div style="text-align:center;margin-bottom:16px"><i class="fas fa-shield-alt" style="font-size:2.5rem;color:var(--red)"></i></div>
+      <h2><i class="fas fa-lock"></i> Admin Girişi</h2>
+      <p style="text-align:center;color:var(--text-muted);margin-bottom:24px;font-size:.9rem">Sadece yetkili admin erişebilir</p>
+      <div id="adminLoginError" class="error-msg"></div>
+      <div class="form-group">
+        <label><i class="fas fa-envelope"></i> E-posta</label>
+        <input type="email" id="adminEmail" placeholder="Admin e-posta"/>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Şifre</label>
+        <input type="password" id="adminPass" placeholder="Şifre"/>
+      </div>
+      <button class="btn-primary" onclick="adminLogin()"><i class="fas fa-sign-in-alt"></i> Giriş Yap</button>
+      <div style="text-align:center;margin-top:16px"><a href="dashboard.html" style="color:var(--text-muted);font-size:.85rem"><i class="fas fa-arrow-left"></i> Dashboard'a Dön</a></div>
+    </div>
+  </div>
+
+  <!-- ADMIN İÇERİĞİ -->
+  <div id="adminContent" style="display:none">
+    <div class="admin-header">
+      <div class="logo"><i class="fas fa-chart-line"></i> TahminArena <span class="admin-badge">ADMİN</span></div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <span style="color:var(--text-muted);font-size:.85rem" id="adminWelcome"></span>
+        <a href="dashboard.html" class="btn-logout"><i class="fas fa-home"></i></a>
+      </div>
+    </div>
+
+    <div class="admin-main">
+
+      <div class="admin-card">
+        <h2><i class="fas fa-users"></i> Kayıtlı Kullanıcılar</h2>
+        <div id="userList"></div>
+      </div>
+
+      <div class="admin-card">
+        <h2><i class="fas fa-crown"></i> Premium İstatistikleri</h2>
+        <div id="premiumStats" style="display:flex;gap:24px;flex-wrap:wrap"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_EMAIL = 'djclubu@tahminarena.com';
+
+    function adminLogin() {
+      const email = document.getElementById('adminEmail').value.trim();
+      const pass  = document.getElementById('adminPass').value;
+      const errEl = document.getElementById('adminLoginError');
+
+      if (email !== ADMIN_EMAIL) {
+        errEl.textContent = 'Bu e-posta admin değil!'; return;
+      }
+
+      const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
+      const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+      const adminUser = users.find(u => u.email === email);
+
+      if (!adminUser && !(session && session.email === ADMIN_EMAIL)) {
+        errEl.textContent = 'Admin hesabı bulunamadı. Önce siteden kayıt olun.'; return;
+      }
+
+      if (adminUser && adminUser.pass !== btoa(pass)) {
+        errEl.textContent = 'Şifre hatalı!'; return;
+      }
+
+      localStorage.setItem('oa_admin_session', '1');
+      showAdminPanel(session || { name: 'Admin', email });
+    }
+
+    function showAdminPanel(session) {
+      document.getElementById('adminLoginOverlay').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+      document.getElementById('adminWelcome').textContent = 'Hoş geldin, ' + (session.name || 'Admin');
+      renderUserList();
+      renderPremiumStats();
+    }
+
+    function renderUserList() {
+      const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+      const container = document.getElementById('userList');
+
+      if (users.length === 0) {
+        container.innerHTML = '<div class="empty-users"><i class="fas fa-user-slash" style="font-size:2rem;display:block;margin-bottom:12px"></i>Henüz kayıtlı kullanıcı yok.</div>';
+        return;
+      }
+
+      container.innerHTML = users.map((u, i) => `
+        <div class="user-row" id="user-row-${i}">
+          <div class="user-row-info">
+            <i class="fas fa-user-circle"></i>
+            <div>
+              <div class="user-row-name">${u.name} ${u.email === ADMIN_EMAIL ? '<span style="color:var(--red);font-size:.75rem">[ADMİN]</span>' : ''}</div>
+              <div class="user-row-email">${u.email}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            ${u.premium ? '<span class="premium-tag"><i class="fas fa-crown"></i> Premium</span>' : ''}
+            ${u.email !== ADMIN_EMAIL
+              ? u.premium
+                ? `<button class="btn-remove-premium" onclick="togglePremiumUser(${i})"><i class="fas fa-times"></i> Premium Kaldır</button>`
+                : `<button class="btn-make-premium" onclick="togglePremiumUser(${i})"><i class="fas fa-crown"></i> Premium Yap</button>`
+              : '<span style="color:var(--text-muted);font-size:.8rem">Her zaman premium</span>'
+            }
+          </div>
+        </div>`).join('');
+    }
+
+    function togglePremiumUser(idx) {
+      const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+      if (!users[idx]) return;
+      users[idx].premium = !users[idx].premium;
+      localStorage.setItem('oa_users', JSON.stringify(users));
+      renderUserList();
+      renderPremiumStats();
+    }
+
+    function renderPremiumStats() {
+      const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+      const totalUsers = users.length;
+      const premiumCount = users.filter(u => u.premium).length;
+
+      document.getElementById('premiumStats').innerHTML = `
+        <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-users"></i></div>
+          <div><div class="stat-num">${totalUsers}</div><div class="stat-label">Toplam Üye</div></div>
+        </div>
+        <div class="stat-card"><div class="stat-icon yellow"><i class="fas fa-crown"></i></div>
+          <div><div class="stat-num">${premiumCount}</div><div class="stat-label">Premium Üye</div></div>
+        </div>
+        <div class="stat-card"><div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+          <div><div class="stat-num">${totalUsers - premiumCount}</div><div class="stat-label">Normal Üye</div></div>
+        </div>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
+      if (session && session.email === ADMIN_EMAIL) {
+        showAdminPanel(session);
+      } else if (localStorage.getItem('oa_admin_session')) {
+        showAdminPanel({ name: 'Admin', email: ADMIN_EMAIL });
+      }
+    });
+  </script>
+</body>
+</html>
