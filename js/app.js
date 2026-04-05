@@ -587,4 +587,61 @@ function toggleSidebar() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('dashUserName')) initDashboard();
+});document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.querySelector('.toggle-pass');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const input = document.getElementById('loginPass');
+            const icon = toggleBtn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+                toggleBtn.setAttribute('aria-label', 'Şifreyi gizle');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+                toggleBtn.setAttribute('aria-label', 'Şifreyi göster');
+            }
+        });
+    }
+    const form = document.getElementById('loginFormElement');
+    if (form) {
+        form.addEventListener('submit', handleLogin);
+    }
 });
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const errorDiv = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (!email || !password) {
+        errorDiv.textContent = 'Lütfen tüm alanları doldurun';
+        return;
+    }
+    if (password.length < 6) {
+        errorDiv.textContent = 'Şifre en az 6 karakter olmalıdır';
+        return;
+    }
+    btn.disabled = true;
+    btnText.hidden = true;
+    btnLoader.hidden = false;
+    errorDiv.textContent = '';
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        if (!response.ok) throw new Error('Giriş başarısız');
+        window.location.href = '/dashboard.html';
+    } catch (err) {
+        errorDiv.textContent = 'E-posta veya şifre hatalı';
+        btn.disabled = false;
+        btnText.hidden = false;
+        btnLoader.hidden = true;
+    }
+}
