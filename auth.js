@@ -1,21 +1,16 @@
-// ===== GİRİŞ VE KAYIT SAYFALARI İÇİN =====
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Auth sistemi başlatıldı');
     
-    // GİRİŞ FORMU
     const loginForm = document.getElementById('loginFormElement');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
     
-    // KAYIT FORMU
     const regForm = document.getElementById('registerFormElement');
     if (regForm) {
         regForm.addEventListener('submit', handleRegister);
     }
     
-    // ŞİFRE GÖSTER/GİZLE
     const toggleBtn = document.getElementById('togglePassBtn');
     if (toggleBtn) {
         toggleBtn.addEventListener('click', function() {
@@ -51,7 +46,6 @@ function handleLogin(e) {
         return;
     }
     
-    // GİRİŞ KONTROLÜ
     let userData = null;
     let isAdmin = false;
     
