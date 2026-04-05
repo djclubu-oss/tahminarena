@@ -1,6 +1,36 @@
 // ===== API CONFIG =====
 const API_BASE = 'https://v3.football.api-sports.io';
 const API_KEY = 'e8287b49fa0bb657f2b4582bb13a496e';
+// ===== AUTH =====
+function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  
+  if (!errEl) {
+    console.error('loginError elementi bulunamadı');
+    return;
+  }
+  
+  const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+  const user = users.find(u => u.email === email && u.pass === btoa(pass));
+  
+  if (email === 'demo@tahminarena.com' && pass === 'demo123') {
+    localStorage.setItem('oa_session', JSON.stringify({ name: 'Demo Kullanıcı', email }));
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  
+  if (!user) { 
+    errEl.textContent = 'E-posta veya şifre hatalı!'; 
+    return; 
+  }
+  
+  errEl.textContent = '';
+  localStorage.setItem('oa_session', JSON.stringify({ name: user.name, email: user.email }));
+  window.location.href = 'dashboard.html';
+}
 
 // ===== SEÇİMLER (PICKS) =====
 let userPicks = JSON.parse(localStorage.getItem('oa_picks') || '[]');
