@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TahminArena - Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css"/>
+  <link rel="stylesheet" href="css/style.css"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -41,6 +41,14 @@
       <a href="#" class="nav-item" onclick="showSection('compare')">
         <i class="fas fa-balance-scale"></i> Oran Kıyasla
       </a>
+      <a href="#" class="nav-item" onclick="showSection('picks')">
+        <i class="fas fa-crosshairs"></i> Seçimlerim
+        <span id="picks-count-badge" class="picks-nav-badge"></span>
+      </a>
+      <a href="#" class="nav-item premium-nav-item" onclick="showSection('premium')">
+        <i class="fas fa-crown"></i> Premium Kupon
+        <i class="fas fa-lock premium-lock-icon" id="premiumNavLock"></i>
+      </a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info">
@@ -50,17 +58,23 @@
           <small id="dashUserEmail">kullanici@email.com</small>
         </div>
       </div>
-      <a href="/index.html" class="btn-logout" onclick="logout()">
+      <a href="index.html" class="btn-logout" onclick="logout()">
         <i class="fas fa-sign-out-alt"></i>
       </a>
     </div>
   </aside>
 
-  <!-- Sidebar Overlay (mobil) -->
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
   <!-- Main Content -->
   <div class="dash-content">
+
+    <!-- API Key Banner -->
+    <div class="api-banner" id="apiBanner">
+      <i class="fas fa-key"></i>
+      <span>Gerçek maç verileri için football-data.org API anahtarınızı girin:</span>
+      <input type="text" id="apiKeyInput" placeholder="API anahtarınızı buraya yapıştırın..." />
+      <button onclick="saveApiKey()"><i class="fas fa-check"></i> Kaydet ve Yükle</button>
+      <button class="btn-skip" onclick="skipApiKey()">Şimdilik Geç</button>
+    </div>
 
     <!-- Topbar -->
     <div class="topbar">
@@ -69,29 +83,8 @@
       <div class="topbar-right">
         <div class="live-badge"><i class="fas fa-circle"></i> CANLI</div>
         <div class="clock" id="clock"></div>
-        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Tema Değiştir">
-          <i class="fas fa-moon"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobil Alt Navigasyon -->
-    <div class="mobile-nav">
-      <div class="mobile-nav-items">
-        <button class="mobile-nav-item active" onclick="showSection('live');setMobileNav(this)">
-          <i class="fas fa-circle live-dot"></i><span>Canlı</span>
-        </button>
-        <button class="mobile-nav-item" onclick="showSection('upcoming');setMobileNav(this)">
-          <i class="fas fa-calendar-alt"></i><span>Maçlar</span>
-        </button>
-        <button class="mobile-nav-item" onclick="showSection('ai');setMobileNav(this)">
-          <i class="fas fa-robot"></i><span>YZ</span>
-        </button>
-        <button class="mobile-nav-item" onclick="showSection('coupon');setMobileNav(this)">
-          <i class="fas fa-ticket-alt"></i><span>Kupon</span>
-        </button>
-        <button class="mobile-nav-item" onclick="showSection('odds');setMobileNav(this)">
-          <i class="fas fa-percent"></i><span>Oranlar</span>
+        <button class="api-key-btn" id="apiStatusBtn" onclick="showApiSetup()" title="API Ayarları">
+          <i class="fas fa-key"></i> <span id="apiStatusText">API Yok</span>
         </button>
       </div>
     </div>
@@ -100,30 +93,36 @@
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-icon green"><i class="fas fa-futbol"></i></div>
-        <div><div class="stat-num" id="liveCount">0</div><div class="stat-label">Canlı Maç</div></div>
+        <div><div class="stat-num" id="liveCount">12</div><div class="stat-label">Canlı Maç</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fas fa-calendar"></i></div>
-        <div><div class="stat-num">-</div><div class="stat-label">Bugünkü Maç</div></div>
+        <div><div class="stat-num">47</div><div class="stat-label">Bugünkü Maç</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon yellow"><i class="fas fa-fire"></i></div>
-        <div><div class="stat-num">-</div><div class="stat-label">Yüksek Oran</div></div>
+        <div><div class="stat-num">8</div><div class="stat-label">Yüksek Oran</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon red"><i class="fas fa-percent"></i></div>
-        <div><div class="stat-num">-</div><div class="stat-label">Tahmin Başarısı</div></div>
+        <div><div class="stat-num">73%</div><div class="stat-label">Tahmin Başarısı</div></div>
       </div>
     </div>
+
+    <!-- Sections -->
 
     <!-- CANLI MAÇLAR -->
     <section class="section" id="sec-live">
       <div class="section-header">
         <h3><i class="fas fa-circle live-dot"></i> Canlı Maçlar</h3>
+        <div class="filter-tabs">
+          <button class="ftab active" onclick="filterLeague('all', this)">Tümü</button>
+          <button class="ftab" onclick="filterLeague('sl', this)">Süper Lig</button>
+          <button class="ftab" onclick="filterLeague('pl', this)">Premier Lig</button>
+          <button class="ftab" onclick="filterLeague('ll', this)">La Liga</button>
+        </div>
       </div>
-      <div class="matches-list" id="liveMatches">
-        <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>
-      </div>
+      <div class="matches-list" id="liveMatches"></div>
     </section>
 
     <!-- ORAN ANALİZİ -->
@@ -144,8 +143,14 @@
         <table class="odds-table">
           <thead>
             <tr>
-              <th>Lig</th><th>Maç</th><th>1</th><th>X</th><th>2</th>
-              <th>Alt 2.5</th><th>Üst 2.5</th><th>Analiz</th>
+              <th>Lig</th>
+              <th>Maç</th>
+              <th>1</th>
+              <th>X</th>
+              <th>2</th>
+              <th>Alt 2.5</th>
+              <th>Üst 2.5</th>
+              <th>Analiz</th>
             </tr>
           </thead>
           <tbody id="oddsTableBody"></tbody>
@@ -179,8 +184,26 @@
       <div class="section-header">
         <h3><i class="fas fa-calendar-alt"></i> Yaklaşan Maçlar</h3>
       </div>
-      <div class="matches-list" id="upcomingMatches">
-        <div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>
+      <div class="matches-list" id="upcomingMatches"></div>
+    </section>
+
+    <!-- GÜNLÜK KUPON -->
+    <section class="section hidden" id="sec-coupon">
+      <div class="section-header">
+        <h3><i class="fas fa-ticket-alt"></i> Günlük YZ Kuponu</h3>
+        <button class="coupon-refresh-btn" onclick="generateCoupon()">
+          <i class="fas fa-sync-alt"></i> Yeniden Üret
+        </button>
+      </div>
+      <!-- Kupon Özeti -->
+      <div class="coupon-hero" id="couponHero"></div>
+      <!-- Kupon Maçları -->
+      <div id="couponMatches"></div>
+      <!-- Açıklama -->
+      <div class="coupon-disclaimer">
+        <i class="fas fa-info-circle"></i>
+        Bu kupon yapay zeka modeli tarafından günlük analiz edilerek oluşturulmuştur.
+        Bahis oynamadan önce kendi araştırmanızı yapınız. Sonuçlar garanti değildir.
       </div>
     </section>
 
@@ -193,6 +216,7 @@
         <div class="empty-state">
           <i class="fas fa-star"></i>
           <p>Henüz favori maç eklemediniz.</p>
+          <small>Maçların yanındaki yıldıza tıklayarak favorilere ekleyebilirsiniz.</small>
         </div>
       </div>
     </section>
@@ -207,42 +231,38 @@
           <button class="ftab" onclick="filterAI('medium', this)">Orta Güven</button>
         </div>
       </div>
+      <!-- Model Banner -->
       <div class="ai-model-banner">
         <div class="ai-model-stat">
           <i class="fas fa-brain"></i>
-          <div><div class="ai-model-val">%78.4</div><div class="ai-model-label">Genel Doğruluk</div></div>
+          <div>
+            <div class="ai-model-val">%78.4</div>
+            <div class="ai-model-label">Genel Doğruluk</div>
+          </div>
         </div>
         <div class="ai-model-stat">
           <i class="fas fa-database"></i>
-          <div><div class="ai-model-val">12.400+</div><div class="ai-model-label">Analiz Edilen Maç</div></div>
+          <div>
+            <div class="ai-model-val">12.400+</div>
+            <div class="ai-model-label">Analiz Edilen Maç</div>
+          </div>
         </div>
         <div class="ai-model-stat">
           <i class="fas fa-sync-alt"></i>
-          <div><div class="ai-model-val">Bugün 06:00</div><div class="ai-model-label">Son Model Günc.</div></div>
+          <div>
+            <div class="ai-model-val">Bugün 06:00</div>
+            <div class="ai-model-label">Son Model Günc.</div>
+          </div>
         </div>
         <div class="ai-model-stat">
           <i class="fas fa-trophy"></i>
-          <div><div class="ai-model-val">%84.1</div><div class="ai-model-label">Süper Lig Doğruluk</div></div>
+          <div>
+            <div class="ai-model-val">%84.1</div>
+            <div class="ai-model-label">Süper Lig Doğruluk</div>
+          </div>
         </div>
       </div>
       <div class="ai-cards-grid" id="aiCards"></div>
-    </section>
-
-    <!-- GÜNLÜK KUPON -->
-    <section class="section hidden" id="sec-coupon">
-      <div class="section-header">
-        <h3><i class="fas fa-ticket-alt"></i> Günlük YZ Kuponu</h3>
-        <button class="coupon-refresh-btn" onclick="generateCoupon()">
-          <i class="fas fa-sync-alt"></i> Yeniden Üret
-        </button>
-      </div>
-      <div class="coupon-hero" id="couponHero"></div>
-      <div id="couponMatches"></div>
-      <div class="coupon-disclaimer">
-        <i class="fas fa-info-circle"></i>
-        Bu kupon yapay zeka modeli tarafından günlük analiz edilerek oluşturulmuştur.
-        Bahis oynamadan önce kendi araştırmanızı yapınız. Sonuçlar garanti değildir.
-      </div>
     </section>
 
     <!-- ORAN KIYASLA -->
@@ -253,6 +273,7 @@
       <div class="compare-info-bar">
         <i class="fas fa-info-circle"></i>
         En iyi oran <span class="best-odd-demo">yeşil</span> ile, en kötü oran <span class="worst-odd-demo">kırmızı</span> ile gösterilir.
+        Fark yüzdesi son sütunda yer alır.
       </div>
       <div class="odds-search">
         <input type="text" id="compareSearch" placeholder="Takım ara..." oninput="filterCompare()"/>
@@ -286,9 +307,46 @@
       </div>
     </section>
 
-  </div>
+    <!-- SEÇİMLERİM -->
+    <section class="section hidden" id="sec-picks">
+      <div class="section-header">
+        <h3><i class="fas fa-crosshairs"></i> Seçimlerim</h3>
+        <button class="coupon-refresh-btn" onclick="clearAllPicks()">
+          <i class="fas fa-trash"></i> Tümünü Sil
+        </button>
+      </div>
+      <div id="picksTotal"></div>
+      <div class="matches-list" id="picksMatches"></div>
+    </section>
 
-  <!-- Modal -->
+    <!-- PREMİUM KUPON -->
+    <section class="section hidden" id="sec-premium">
+      <div class="section-header">
+        <h3><i class="fas fa-crown"></i> Premium Kupon</h3>
+      </div>
+      <!-- KİLİTLİ (normal üye) -->
+      <div id="premiumLocked">
+        <div class="premium-lock-overlay">
+          <i class="fas fa-lock"></i>
+          <h2>Premium Üyelik Gerekli</h2>
+          <p>Bu bölüm sadece premium üyelere özeldir. YZ'nin günlük en iyi 5 maçlık özel kuponu burada yer alır.</p>
+          <div class="premium-features-list">
+            <div><i class="fas fa-check-circle"></i> Günlük 5 maçlık özel kupon</div>
+            <div><i class="fas fa-check-circle"></i> YZ'nin en yüksek güvenli seçimleri</div>
+            <div><i class="fas fa-check-circle"></i> Tüm marketler analiz edilir</div>
+          </div>
+          <p class="premium-contact">Premium olmak için: <strong>djclubu@tahminarena.com</strong> ile iletişime geçin</p>
+        </div>
+      </div>
+      <!-- AÇIK (premium üye) -->
+      <div id="premiumContent" class="hidden">
+        <div id="premiumCouponContent"></div>
+      </div>
+    </section>
+
+  </div><!-- end dash-content -->
+
+  <!-- Modal: Oran Detay -->
   <div class="modal-overlay hidden" id="oddsModal">
     <div class="modal-box">
       <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
@@ -297,8 +355,8 @@
     </div>
   </div>
 
-  <script src="/js/data.js"></script>
-  <script src="/js/app.js"></script>
-  <script src="/js/charts.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/charts.js"></script>
 </body>
 </html>
