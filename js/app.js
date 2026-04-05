@@ -69,4 +69,25 @@ function matchCard(m, isLive, isFinished = false) {
     </div>
     <button class="fav-btn" onclick="toggleFav(${matchId}, this)"><i class="fas fa-star"></i></button>
   </div>`;
+// ===== SECTION NAV =====
+const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare','picks','premium'];
+const TITLES = {
+  live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
+  upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
+  ai:'YZ Tahmin', coupon:'Günlük YZ Kuponu', compare:'Oran Karşılaştırma',
+  picks:'Seçimlerim', premium:'Premium Kupon'
+};
+
+function showSection(key) {
+  SECTIONS.forEach(s => {
+    const el = document.getElementById('sec-'+s);
+    if (el) el.classList.toggle('hidden', s !== key);
+  });
+  document.getElementById('sectionTitle').textContent = TITLES[key] || '';
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    el.classList.toggle('active', onclick.includes(`'${key}'`));
+  });
+  if (key === 'picks') renderPicks();
+  if (key === 'premium') renderPremiumCoupon();
 }
