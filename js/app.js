@@ -58,7 +58,6 @@ function updatePicksBadge() {
 // ===== YZ DETAYLI ANALİZ =====
 async function analyzeMatchWithAI(fixtureId, homeTeamId, awayTeamId) {
   try {
-    // Takım istatistiklerini çek
     const [homeStats, awayStats, h2h] = await Promise.all([
       fetch(`${API_BASE}/teams/statistics?team=${homeTeamId}&season=2024`, {
         headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' }
@@ -75,19 +74,13 @@ async function analyzeMatchWithAI(fixtureId, homeTeamId, awayTeamId) {
     const away = awayStats.response || {};
     const h2hMatches = h2h.response || [];
 
-    // Form analizi (son 5 maç)
     const homeForm = home.form ? home.form.slice(-5) : '';
     const awayForm = away.form ? away.form.slice(-5) : '';
-    
-    // Gol ortalamaları
     const homeGoals = home.goals?.for?.average?.total || 0;
     const awayGoals = away.goals?.for?.average?.total || 0;
-    
-    // KG Var/Yok analizi
     const homeBTTS = home.fixtures?.played?.total ? 
       (home.goals?.for?.total + home.goals?.against?.total) / home.fixtures.played.total : 0;
     
-    // H2H istatistikleri
     let h2hHomeWins = 0, h2hDraws = 0, h2hAwayWins = 0;
     h2hMatches.slice(0, 5).forEach(m => {
       if (m.teams.home.winner) h2hHomeWins++;
@@ -95,36 +88,20 @@ async function analyzeMatchWithAI(fixtureId, homeTeamId, awayTeamId) {
       else h2hDraws++;
     });
 
-    // YZ Skorlama (0-100)
     let homeScore = 0, awayScore = 0;
-    
-    // Form puanı
     homeScore += (homeForm.match(/W/g) || []).length * 10;
     awayScore += (awayForm.match(/W/g) || []).length * 10;
-    
-    // Gol ortalaması
     homeScore += parseFloat(homeGoals) * 5;
     awayScore += parseFloat(awayGoals) * 5;
-    
-    // İç saha avantajı
     homeScore += 15;
-    
-    // H2H avantajı
     homeScore += h2hHomeWins * 5;
     awayScore += h2hAwayWins * 5;
     
-    // KG Var ihtimali hesaplama
     const bttsChance = (homeBTTS + awayGoals) / 2 > 2.5 ? 'Yüksek' : 'Orta';
-    
-    // Gol tahmini (Alt/Üst 2.5)
     const goalPrediction = (parseFloat(homeGoals) + parseFloat(awayGoals)) / 2;
     const overUnder = goalPrediction > 2.5 ? 'Üst 2.5' : 'Alt 2.5';
     
-    // En olası sonuç
-    let bestPick = '1';
-    let bestOdds = 1.80;
-    let confidence = 'Orta';
-    
+    let bestPick = '1', bestOdds = 1.80, confidence = 'Orta';
     if (homeScore > awayScore + 20) {
       bestPick = '1';
       bestOdds = 1.70;
@@ -140,13 +117,8 @@ async function analyzeMatchWithAI(fixtureId, homeTeamId, awayTeamId) {
     }
 
     return {
-      bestPick,
-      bestOdds,
-      confidence,
-      btts: bttsChance,
-      overUnder,
-      homeScore: Math.round(homeScore),
-      awayScore: Math.round(awayScore),
+      bestPick, bestOdds, confidence, btts: bttsChance, overUnder,
+      homeScore: Math.round(homeScore), awayScore: Math.round(awayScore),
       analysis: `Form: ${homeForm} vs ${awayForm} | Gol: ${homeGoals} vs ${awayGoals} | H2H: ${h2hHomeWins}-${h2hDraws}-${h2hAwayWins}`
     };
   } catch (err) {
@@ -154,7 +126,7 @@ async function analyzeMatchWithAI(fixtureId, homeTeamId, awayTeamId) {
   }
 }
 
-// ===== YZ GÜNLÜK KUPON (YARIN İÇİN) =====
+// ===== YZ GÜNLÜK KUPON =====
 async function generateAICoupon() {
   const container = document.getElementById('couponContent');
   if (!container) return;
@@ -162,7 +134,6 @@ async function generateAICoupon() {
   container.innerHTML = '<div class="loading-state"><i class="fas fa-robot fa-spin"></i> YZ analiz ediyor...</div>';
   
   try {
-    // Yarının tarihi
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dateStr = tomorrow.toISOString().split('T')[0];
@@ -185,7 +156,6 @@ async function generateAICoupon() {
       return;
     }
     
-    // İlk 5 maçı detaylı analiz et
     const analyzedMatches = [];
     for (let i = 0; i < Math.min(5, matches.length); i++) {
       const m = matches[i];
@@ -193,12 +163,10 @@ async function generateAICoupon() {
       analyzedMatches.push({ ...m, analysis });
     }
     
-    // En yüksek güvenli 3 maçı seç
     const selectedMatches = analyzedMatches
       .sort((a, b) => (b.analysis.homeScore + b.analysis.awayScore) - (a.analysis.homeScore + a.analysis.awayScore))
       .slice(0, 3);
     
-    // Kuponu kaydet
     const coupon = {
       date: dateStr,
       matches: selectedMatches,
@@ -206,7 +174,6 @@ async function generateAICoupon() {
     };
     localStorage.setItem('ai_coupon_' + dateStr, JSON.stringify(coupon));
     
-    // Göster
     container.innerHTML = `
       <div class="coupon-hero">
         <div class="coupon-date"><i class="fas fa-calendar"></i> ${tomorrow.toLocaleDateString('tr-TR')}</div>
@@ -444,24 +411,14 @@ function handleLogin(e) {
   
   if (!errEl) return;
   
-  // Admin girişi
   if (email === ADMIN_EMAIL && pass === 'admin123') {
-    localStorage.setItem('oa_session', JSON.stringify({ 
-      name: 'Admin', 
-      email: ADMIN_EMAIL,
-      isAdmin: true 
-    }));
+    localStorage.setItem('oa_session', JSON.stringify({ name: 'Admin', email: ADMIN_EMAIL, isAdmin: true }));
     window.location.href = 'dashboard.html';
     return;
   }
   
-  // Demo girişi
   if (email === 'demo@tahminarena.com' && pass === 'demo123') {
-    localStorage.setItem('oa_session', JSON.stringify({ 
-      name: 'Demo Kullanıcı', 
-      email: 'demo@tahminarena.com',
-      isAdmin: false 
-    }));
+    localStorage.setItem('oa_session', JSON.stringify({ name: 'Demo Kullanıcı', email: 'demo@tahminarena.com', isAdmin: false }));
     window.location.href = 'dashboard.html';
     return;
   }
@@ -475,11 +432,7 @@ function handleLogin(e) {
   }
   
   errEl.textContent = '';
-  localStorage.setItem('oa_session', JSON.stringify({ 
-    name: user.name, 
-    email: user.email,
-    isAdmin: false 
-  }));
+  localStorage.setItem('oa_session', JSON.stringify({ name: user.name, email: user.email, isAdmin: false }));
   window.location.href = 'dashboard.html';
 }
 
@@ -531,7 +484,6 @@ function initDashboard() {
   }
   if (emailEl) emailEl.textContent = session.email;
   
-  // Admin ise admin paneli göster
   if (session.isAdmin) {
     showAdminFeatures();
   }
@@ -541,7 +493,6 @@ function initDashboard() {
 }
 
 function showAdminFeatures() {
-  // Admin özel özellikler buraya eklenebilir
   console.log('Admin girişi yapıldı');
 }
 
@@ -587,61 +538,4 @@ function toggleSidebar() {
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('dashUserName')) initDashboard();
-});document.addEventListener('DOMContentLoaded', () => {
-    const toggleBtn = document.querySelector('.toggle-pass');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            const input = document.getElementById('loginPass');
-            const icon = toggleBtn.querySelector('i');
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.replace('fa-eye', 'fa-eye-slash');
-                toggleBtn.setAttribute('aria-label', 'Şifreyi gizle');
-            } else {
-                input.type = 'password';
-                icon.classList.replace('fa-eye-slash', 'fa-eye');
-                toggleBtn.setAttribute('aria-label', 'Şifreyi göster');
-            }
-        });
-    }
-    const form = document.getElementById('loginFormElement');
-    if (form) {
-        form.addEventListener('submit', handleLogin);
-    }
 });
-
-async function handleLogin(e) {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPass').value;
-    const errorDiv = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    const btnText = btn.querySelector('.btn-text');
-    const btnLoader = btn.querySelector('.btn-loader');
-    if (!email || !password) {
-        errorDiv.textContent = 'Lütfen tüm alanları doldurun';
-        return;
-    }
-    if (password.length < 6) {
-        errorDiv.textContent = 'Şifre en az 6 karakter olmalıdır';
-        return;
-    }
-    btn.disabled = true;
-    btnText.hidden = true;
-    btnLoader.hidden = false;
-    errorDiv.textContent = '';
-    try {
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        if (!response.ok) throw new Error('Giriş başarısız');
-        window.location.href = '/dashboard.html';
-    } catch (err) {
-        errorDiv.textContent = 'E-posta veya şifre hatalı';
-        btn.disabled = false;
-        btnText.hidden = false;
-        btnLoader.hidden = true;
-    }
-}
