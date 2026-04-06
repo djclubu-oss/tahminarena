@@ -1,54 +1,56 @@
 // ===== Authentication Service =====
 
+const AUTH_STORAGE_KEYS = {
+  SESSION: 'ta_session',
+  USERS: 'ta_users'
+};
+
 class AuthService {
   constructor() {
     this.session = null;
     this.loadSession();
   }
 
-  // Load session from storage
+  getKeys() {
+    return typeof STORAGE_KEYS !== 'undefined' ? STORAGE_KEYS : AUTH_STORAGE_KEYS;
+  }
+
   loadSession() {
-    const session = localStorage.getItem(STORAGE_KEYS.SESSION);
+    const keys = this.getKeys();
+    const session = localStorage.getItem(keys.SESSION);
     this.session = session ? JSON.parse(session) : null;
   }
 
-  // Check if logged in
   isLoggedIn() {
     return this.session !== null;
   }
 
-  // Check if premium
   isPremium() {
     if (!this.session) return false;
-    if (this.session.email === ADMIN_EMAIL) return true;
+    if (this.session.email === 'djclubu@tahminarena.com') return true;
     return this.session.premium === true;
   }
 
-  // Check if admin
   isAdmin() {
-    return this.session?.email === ADMIN_EMAIL;
+    return this.session?.email === 'djclubu@tahminarena.com';
   }
 
-  // Login
   login(email, password) {
-    // Demo account
     if (email === 'demo@tahminarena.com' && password === 'demo123') {
       const user = { name: 'Demo Kullanıcı', email, premium: false };
       this.setSession(user);
       return { success: true, user };
     }
 
-    // Admin account
-    if (email === ADMIN_EMAIL) {
+    if (email === 'djclubu@tahminarena.com') {
       const users = this.getUsers();
-      const admin = users.find(u => u.email === ADMIN_EMAIL && u.password === this.hashPassword(password));
+      const admin = users.find(u => u.email === 'djclubu@tahminarena.com' && u.password === this.hashPassword(password));
       if (admin) {
         this.setSession(admin);
         return { success: true, user: admin };
       }
     }
 
-    // Regular users
     const users = this.getUsers();
     const user = users.find(u => u.email === email && u.password === this.hashPassword(password));
     
@@ -60,7 +62,6 @@ class AuthService {
     return { success: false, error: 'E-posta veya şifre hatalı!' };
   }
 
-  // Register
   register(name, email, password) {
     const users = this.getUsers();
     
@@ -81,103 +82,46 @@ class AuthService {
     };
 
     users.push(newUser);
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    const keys = this.getKeys();
+    localStorage.setItem(keys.USERS, JSON.stringify(users));
     
     this.setSession(newUser);
     return { success: true, user: newUser };
   }
 
-  // Logout
   logout() {
     this.session = null;
-    localStorage.removeItem(STORAGE_KEYS.SESSION);
+    const keys = this.getKeys();
+    localStorage.removeItem(keys.SESSION);
   }
 
-  // Set session
   setSession(user) {
     this.session = user;
-    localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
+    const keys = this.getKeys();
+    localStorage.setItem(keys.SESSION, JSON.stringify(user));
   }
 
-  // Get current user
   getCurrentUser() {
     return this.session;
   }
 
-  // Get all users (for admin)
   getUsers() {
-    const users = localStorage.getItem(STORAGE_KEYS.USERS);
+    const keys = this.getKeys();
+    const users = localStorage.getItem(keys.USERS);
     return users ? JSON.parse(users) : [];
   }
 
-  // Make user premium (admin only)
-  makePremium(email) {
-    if (!this.isAdmin()) return { success: false, error: 'Yetkisiz işlem!' };
-    
-    const users = this.getUsers();
-    const userIndex = users.findIndex(u => u.email === email);
-    
-    if (userIndex === -1) {
-      return { success: false, error: 'Kullanıcı bulunamadı!' };
+  requireAuth() {
+    if (!this.isLoggedIn()) {
+      window.location.href = 'index.html';
+      return false;
     }
-
-    users[userIndex].premium = true;
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    
-    // Update session if it's the current user
-    if (this.session?.email === email) {
-      this.session.premium = true;
-      this.setSession(this.session);
-    }
-
-    return { success: true };
+    return true;
   }
 
-  // Remove premium (admin only)
-  removePremium(email) {
-    if (!this.isAdmin()) return { success: false, error: 'Yetkisiz işlem!' };
-    
-    const users = this.getUsers();
-    const userIndex = users.findIndex(u => u.email === email);
-    
-    if (userIndex === -1) {
-      return { success: false, error: 'Kullanıcı bulunamadı!' };
-    }
-
-    users[userIndex].premium = false;
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    
-    if (this.session?.email === email) {
-      this.session.premium = false;
-      this.setSession(this.session);
-    }
-
-    return { success: true };
-  }
-
-  // Hash password (simple base64 for demo)
   hashPassword(password) {
     return btoa(password);
   }
-
-  // Protect route
-  requireAuth() {
-    if (!this.isLoggedIn()) {
-      window.location.href = './index.html';
-      return false;
-    }
-    return true;
-  }
-
-  // Protect admin route
-  requireAdmin() {
-    if (!this.isAdmin()) {
-      window.location.href = './dashboard.html';
-      return false;
-    }
-    return true;
-  }
 }
 
-// Create global instance
 const authService = new AuthService();
