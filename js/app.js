@@ -1,8 +1,8 @@
 diff --git a/js/app.js b/js/app.js
-index 3cfce7c840460e1a9c334b056b489c4b653042bc..15312daa84646e9ff615b4dc41bf674e9d5c19b4 100644
+index 3cfce7c840460e1a9c334b056b489c4b653042bc..7423aaa84abcbfeccbc43c4a366325155c8044d1 100644
 --- a/js/app.js
 +++ b/js/app.js
-@@ -1,455 +1,577 @@
+@@ -1,455 +1,737 @@
 -// ===== TOGGLE PASSWORD =====
 -function togglePass(id, el) {
 -  const inp = document.getElementById(id);
@@ -985,6 +985,166 @@ index 3cfce7c840460e1a9c334b056b489c4b653042bc..15312daa84646e9ff615b4dc41bf674e
 +function logout() {
 +  localStorage.removeItem('oa_session');
 +}
++
++
++
++// ===== KUPON YÖNETİMİ =====
++function daySeed() {
++  const d = new Date();
++  return Number(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`);
++}
++
++function seededPicker(seed) {
++  return function() {
++    seed = (seed * 1103515245 + 12345) % 2147483647;
++    return seed / 2147483647;
++  };
++}
++
++function getSourceMatches() {
++  return (window.aiMatches && window.aiMatches.length ? window.aiMatches : window.currentMatches) || [];
++}
++
++function pickDailyMatches(countMin = 3, countMax = 4) {
++  const all = getSourceMatches().filter(m => ['NS', 'TBD', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture?.status?.short || 'NS'));
++  if (!all.length) return [];
++
++  const rand = seededPicker(daySeed());
++  const count = Math.min(all.length, Math.max(countMin, Math.floor(rand() * (countMax - countMin + 1)) + countMin));
++
++  const pool = [...all];
++  const selected = [];
++  while (selected.length < count && pool.length) {
++    const idx = Math.floor(rand() * pool.length);
++    selected.push(pool.splice(idx, 1)[0]);
++  }
++  return selected;
++}
++
++function marketForMatch(match, isPremium = false) {
++  const analyses = typeof buildMatchAnalyses === 'function' ? buildMatchAnalyses(match) : { markets: [] };
++  const markets = analyses.markets || [];
++  if (!markets.length) {
++    return { market: '2.5 Üst', odd: '1.90', confidence: isPremium ? 99 : 82 };
++  }
++  const sorted = [...markets].sort((a, b) => b.confidence - a.confidence);
++  const best = sorted[0];
++  return {
++    market: best.market,
++    odd: best.odd,
++    confidence: isPremium ? Math.max(99, best.confidence) : best.confidence
++  };
++}
++
++function renderCoupons() {
++  const hero = document.getElementById('couponHero');
++  const list = document.getElementById('couponMatches');
++  if (!hero || !list) return;
++
++  const selected = pickDailyMatches(3, 4);
++  if (!selected.length) {
++    hero.innerHTML = '<div class="empty-state"><p>Kupon üretmek için maç verisi bekleniyor.</p></div>';
++    list.innerHTML = '';
++    return;
++  }
++
++  const rows = selected.map(m => {
++    const pick = marketForMatch(m, false);
++    const t = new Date(m.fixture?.date || Date.now()).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
++    return {
++      teams: `${m.teams?.home?.name || 'Ev'} vs ${m.teams?.away?.name || 'Deplasman'}`,
++      league: m.league?.name || 'Lig',
++      time: t,
++      pick
++    };
++  });
++
++  const totalOdd = rows.reduce((acc, r) => acc * Number(r.pick.odd), 1).toFixed(2);
++  hero.innerHTML = `
++    <div class="coupon-date"><i class="fas fa-calendar"></i> ${new Date().toLocaleDateString('tr-TR')} Günlük Tahmin Kuponu</div>
++    <div class="coupon-hero-stats">
++      <div><strong>${rows.length}</strong> Maç</div>
++      <div><strong>${totalOdd}</strong> Toplam Oran</div>
++      <div><strong>%84+</strong> Ortalama Güven</div>
++    </div>
++  `;
++
++  list.innerHTML = rows.map((r, i) => `
++    <div class="match-card">
++      <div class="match-league">${i + 1}. Maç • ${r.league}</div>
++      <div class="match-teams"><div class="teams">${r.teams}</div><div class="match-time">${r.time}</div></div>
++      <div class="ai-form-line"><strong>${r.pick.market}</strong> @${r.pick.odd} • Güven: %${r.pick.confidence}</div>
++    </div>
++  `).join('');
++}
++
++function renderPremiumCoupon() {
++  const locked = document.getElementById('premiumLocked');
++  const content = document.getElementById('premiumContent');
++  const dateEl = document.getElementById('premiumCouponDate');
++  const listEl = document.getElementById('premiumCouponContent');
++  const totalEl = document.getElementById('premiumTotalOdds');
++  if (!locked || !content || !dateEl || !listEl || !totalEl) return;
++
++  const premium = typeof isPremium === 'function' ? isPremium() : false;
++  if (!premium) {
++    locked.classList.remove('hidden');
++    content.classList.add('hidden');
++    return;
++  }
++
++  locked.classList.add('hidden');
++  content.classList.remove('hidden');
++
++  const selected = pickDailyMatches(3, 4);
++  dateEl.innerHTML = `<i class="fas fa-calendar"></i> ${new Date().toLocaleDateString('tr-TR')} • Yapay Zeka Premium Kupon`;
++
++  if (!selected.length) {
++    listEl.innerHTML = '<div class="empty-state"><p>Premium kupon için maç verisi bekleniyor.</p></div>';
++    totalEl.textContent = '-';
++    return;
++  }
++
++  const picks = selected.map((m, i) => {
++    const p = marketForMatch(m, true);
++    const tm = new Date(m.fixture?.date || Date.now()).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
++    const live = ['1H', 'HT', '2H', 'LIVE'].includes(m.fixture?.status?.short || '');
++    const score = `${m.goals?.home ?? 0}-${m.goals?.away ?? 0}`;
++    return {
++      index: i + 1,
++      league: m.league?.name || 'Lig',
++      teams: `${m.teams?.home?.name || 'Ev'} vs ${m.teams?.away?.name || 'Dep'}`,
++      time: tm,
++      live,
++      score,
++      pick: p
++    };
++  });
++
++  totalEl.textContent = picks.reduce((a, x) => a * Number(x.pick.odd), 1).toFixed(2);
++
++  listEl.innerHTML = picks.map(x => `
++    <div class="match-card">
++      <div class="match-league">${x.index}. Maç • ${x.league}</div>
++      <div class="match-teams">
++        <div class="teams">${x.teams}</div>
++        <div class="match-time">${x.time} ${x.live ? `• <span class="live-score">Canlı ${x.score}</span>` : ''}</div>
++      </div>
++      <div class="ai-form-line"><strong>${x.pick.market}</strong> @${x.pick.odd} • Güven: %${x.pick.confidence}</div>
++    </div>
++  `).join('');
++}
++
++function refreshDailyCoupon() {
++  renderCoupons();
++  renderPremiumCoupon();
++}
++
++window.addEventListener('DOMContentLoaded', () => {
++  renderCoupons();
++  renderPremiumCoupon();
++});
++
 +
 +// ===== INIT =====
 +function initDashboard() {
