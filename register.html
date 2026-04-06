@@ -1,134 +1,80 @@
-diff --git a/register.html b/register.html
-index be6b39b685c53b3b2c13a59293d89a492ddc68b6..ce136f7ed669bd948de2aa66ab8dbe3abbc4230d 100644
---- a/register.html
-+++ b/register.html
-@@ -1,75 +1,54 @@
--<!DOCTYPE html>
--<html lang="tr">
--<head>
--  <meta charset="UTF-8"/>
--  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
--  <title>OranAnalizim - Kayıt Ol</title>
--  <base href="/">
--  <link rel="stylesheet" href="css/style.css"/>
--  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
--</head>
--<body class="auth-body">
--
--  <header class="auth-header">
--    <div class="logo">
--      <i class="fas fa-chart-line"></i>
--      <span>OranAnalizim</span>
--    </div>
--    <nav class="auth-nav">
--      <a href="./">Giriş Yap</a>
--      <a href="./register.html" class="active">Kayıt Ol</a>
--    </nav>
--  </header>
--
--  <main class="auth-main">
--    <div class="auth-card">
--      <div class="auth-icon">
--        <i class="fas fa-user-plus"></i>
--      </div>
--      <h2>Hesap Oluştur</h2>
--      <p class="auth-sub">Ücretsiz hesap aç, analiz yapmaya hemen başla</p>
--
--      <form onsubmit="handleRegister(event)">
--        <div class="form-group">
--          <label><i class="fas fa-user"></i> Ad Soyad</label>
--          <input type="text" id="regName" placeholder="Adınız Soyadınız" required/>
--        </div>
--        <div class="form-group">
--          <label><i class="fas fa-envelope"></i> E-posta Adresi</label>
--          <input type="email" id="regEmail" placeholder="ornek@email.com" required/>
--        </div>
--        <div class="form-group">
--          <label><i class="fas fa-lock"></i> Şifre</label>
--          <div class="pass-wrap">
--            <input type="password" id="regPass" placeholder="En az 6 karakter" required/>
--            <span class="toggle-pass" onclick="togglePass('regPass', this)"><i class="fas fa-eye"></i></span>
--          </div>
--        </div>
--        <div class="form-group">
--          <label><i class="fas fa-lock"></i> Şifre Tekrar</label>
--          <div class="pass-wrap">
--            <input type="password" id="regPass2" placeholder="Şifrenizi tekrar girin" required/>
--            <span class="toggle-pass" onclick="togglePass('regPass2', this)"><i class="fas fa-eye"></i></span>
--          </div>
--        </div>
--        <div class="form-row">
--          <label class="check-label">
--            <input type="checkbox" id="terms" required/>
--            <a href="#" style="color:#f59e0b">Kullanım Şartları</a>'nı kabul ediyorum
--          </label>
--        </div>
--        <div class="error-msg" id="regError"></div>
--        <div class="success-msg" id="regSuccess"></div>
--        <button type="submit" class="btn-primary">
--          <i class="fas fa-user-plus"></i> Kayıt Ol
--        </button>
--      </form>
--
--      <p class="auth-footer">Zaten hesabın var mı? <a href="./">Giriş Yap</a></p>
--    </div>
--  </main>
--
--  <script src="js/couponManager.js"></script>
--  <script src="js/app.js"></script>
--</body>
--</html>
-+<!DOCTYPE html>
-+<html lang="tr">
-+<head>
-+  <meta charset="UTF-8" />
-+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-+  <title>TahminArena - Kayıt</title>
-+  <base href="/">
-+  <link rel="stylesheet" href="css/style.css"/>
-+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-+</head>
-+<body class="auth-body">
-+  <header class="auth-header">
-+    <div class="logo"><i class="fas fa-futbol"></i><span>TahminArena</span></div>
-+    <nav class="auth-nav">
-+      <a href="./">Giriş Yap</a>
-+      <a href="./register.html" class="active">Kayıt Ol</a>
-+    </nav>
-+  </header>
-+
-+  <main class="auth-main single">
-+    <section class="auth-card">
-+      <h1>Kayıt Ol</h1>
-+      <p class="muted">Premium sistemli tahmin paneline katıl</p>
-+
-+      <form onsubmit="handleRegister(event)">
-+        <label>Ad Soyad</label>
-+        <input id="regName" type="text" required placeholder="Ad Soyad" />
-+
-+        <label>E-posta</label>
-+        <input id="regEmail" type="email" required placeholder="ornek@email.com" />
-+
-+        <label>Şifre</label>
-+        <div class="password-wrap">
-+          <input id="regPass" type="password" required placeholder="En az 6 karakter" />
-+          <button class="icon-btn" type="button" onclick="togglePass('regPass', this)"><i class="fas fa-eye"></i></button>
-+        </div>
-+
-+        <label>Şifre Tekrar</label>
-+        <div class="password-wrap">
-+          <input id="regPass2" type="password" required placeholder="Şifreyi tekrar gir" />
-+          <button class="icon-btn" type="button" onclick="togglePass('regPass2', this)"><i class="fas fa-eye"></i></button>
-+        </div>
-+
-+        <p id="regError" class="error-msg"></p>
-+        <p id="regSuccess" class="success-msg"></p>
-+        <button class="btn-primary" type="submit">Kayıt Ol</button>
-+      </form>
-+    </section>
-+  </main>
-+
-+  <script src="js/couponManager.js"></script>
-+  <script src="js/app.js"></script>
-+</body>
-+</html>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TahminArena - Kayıt Ol</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="auth-body">
+
+  <header class="auth-header">
+    <div class="logo">
+      <i class="fas fa-chart-line"></i>
+      <span>TahminArena</span>
+    </div>
+    <nav class="auth-nav">
+      <a href="index.html">Giriş Yap</a>
+      <a href="register.html" class="active">Kayıt Ol</a>
+    </nav>
+  </header>
+
+  <main class="auth-main">
+    <div class="auth-card">
+      <div class="auth-icon">
+        <i class="fas fa-user-plus"></i>
+      </div>
+      <h2>Hesap Oluştur</h2>
+      <p class="auth-sub">Ücretsiz hesap aç, analiz yapmaya hemen başla</p>
+
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> Ad Soyad</label>
+          <input type="text" id="regName" placeholder="Adınız Soyadınız" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-envelope"></i> E-posta Adresi</label>
+          <input type="email" id="regEmail" placeholder="ornek@email.com" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-lock"></i> Şifre</label>
+          <div class="pass-wrap">
+            <input type="password" id="regPass" placeholder="En az 6 karakter" required>
+            <span class="toggle-pass" onclick="togglePass('regPass', this)">
+              <i class="fas fa-eye"></i>
+            </span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-lock"></i> Şifre Tekrar</label>
+          <div class="pass-wrap">
+            <input type="password" id="regPass2" placeholder="Şifrenizi tekrar girin" required>
+            <span class="toggle-pass" onclick="togglePass('regPass2', this)">
+              <i class="fas fa-eye"></i>
+            </span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="check-label">
+            <input type="checkbox" required>
+            <a href="#" style="color: var(--accent)">Kullanım Şartları</a>'nı kabul ediyorum
+          </label>
+        </div>
+        <div class="error-msg" id="regError"></div>
+        <div class="success-msg" id="regSuccess"></div>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-user-plus"></i> Kayıt Ol
+        </button>
+      </form>
+
+      <p class="auth-footer">Zaten hesabın var mı? <a href="index.html">Giriş Yap</a></p>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
