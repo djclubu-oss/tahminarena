@@ -1,8 +1,8 @@
 diff --git a/js/app.js b/js/app.js
-index 3cfce7c840460e1a9c334b056b489c4b653042bc..04aff6ae0000690b04c121e5e33a99b3d2ac41e6 100644
+index 3cfce7c840460e1a9c334b056b489c4b653042bc..15312daa84646e9ff615b4dc41bf674e9d5c19b4 100644
 --- a/js/app.js
 +++ b/js/app.js
-@@ -1,455 +1,564 @@
+@@ -1,455 +1,577 @@
 -// ===== TOGGLE PASSWORD =====
 -function togglePass(id, el) {
 -  const inp = document.getElementById(id);
@@ -608,6 +608,8 @@ index 3cfce7c840460e1a9c334b056b489c4b653042bc..04aff6ae0000690b04c121e5e33a99b3
 +    updatePickButtons();
 +    updatePicksBadge();
 +    renderAIPredictions();
++    if (typeof renderCoupons === 'function') renderCoupons();
++    if (typeof renderPremiumCoupon === 'function') renderPremiumCoupon();
 +    
 +  } catch (err) {
 +    liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p></div>`;
@@ -706,16 +708,16 @@ index 3cfce7c840460e1a9c334b056b489c4b653042bc..04aff6ae0000690b04c121e5e33a99b3
 +
 +  const isUserPremium = isPremium();
 +  const freeCount = 2;
++  const visibleMatches = isUserPremium ? matches : matches.slice(0, freeCount);
 +  let html = '';
 +
 +  const aiFilter = window.aiFilterKey || 'all';
 +
-+  matches.forEach((m, index) => {
++  visibleMatches.forEach((m, index) => {
 +    const home = m.teams?.home?.name || 'Ev';
 +    const away = m.teams?.away?.name || 'Deplasman';
 +    const details = buildMatchAnalyses(m);
 +    const meta = getMatchMeta(m);
-+    const premiumLocked = !isUserPremium && index >= freeCount;
 +    const passFilter = (
 +      aiFilter === 'all' ||
 +      (aiFilter === 'high' && details.best.confidence >= 80) ||
@@ -733,7 +735,7 @@ index 3cfce7c840460e1a9c334b056b489c4b653042bc..04aff6ae0000690b04c121e5e33a99b3
 +    `).join('');
 +
 +    html += `
-+      <article class="ai-card ${premiumLocked ? 'premium-only' : ''}">
++      <article class="ai-card">
 +        <div class="ai-card-header">
 +          <span class="ai-league">${escapeHtml(m.league?.name || 'Lig')}</span>
 +          <span class="ai-confidence ${details.best.confidenceClass} ${pulseClass}">%${details.best.confidence}</span>
@@ -746,10 +748,19 @@ index 3cfce7c840460e1a9c334b056b489c4b653042bc..04aff6ae0000690b04c121e5e33a99b3
 +        <div class="ai-form-line">Son 10: ${home} (${details.homeForm.wins}G-${details.homeForm.draws}B-${details.homeForm.losses}M) • ${away} (${details.awayForm.wins}G-${details.awayForm.draws}B-${details.awayForm.losses}M)</div>
 +        <div class="ai-form-line">Sakatlık Etkisi: ${home} (${details.injuries.home}) • ${away} (${details.injuries.away})</div>
 +        <div class="ai-markets">${marketRows}</div>
-+        ${premiumLocked ? '<div class="ai-lock-layer"><i class="fas fa-crown"></i> Premium Üyelik ile tüm analizleri aç</div>' : ''}
 +      </article>
 +    `;
 +  });
++
++  if (!isUserPremium && matches.length > freeCount) {
++    html += `
++      <div class="premium-lock-overlay">
++        <i class="fas fa-crown"></i>
++        <h3>Diğer analizler Premium Üyelere Özel</h3>
++        <p>Ücretsiz üyelikte yalnızca ilk 2 analiz görünür.</p>
++      </div>
++    `;
++  }
 +
 +  container.innerHTML = html;
 +  renderSuccessfulAnalyses();
@@ -987,6 +998,8 @@ index 3cfce7c840460e1a9c334b056b489c4b653042bc..04aff6ae0000690b04c121e5e33a99b3
 +  if (emailEl) emailEl.textContent = session.email;
 +  
 +  loadMatches();
++  if (typeof renderCoupons === 'function') renderCoupons();
++  if (typeof renderPremiumCoupon === 'function') renderPremiumCoupon();
 +}
 +
 +// ===== SECTION NAV =====
