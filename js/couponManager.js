@@ -1,256 +1,249 @@
-// ===== Coupon Management =====
+// ===== GÜNLÜK KUPON YÖNETİMİ =====
+// Her gün otomatik yeni kupon oluşturur
 
-class CouponService {
-  constructor() {
-    this.dailyCouponKey = STORAGE_KEYS.DAILY_COUPON;
-    this.premiumCouponKey = STORAGE_KEYS.PREMIUM_COUPON;
-  }
+const COUPON_STORAGE_KEY = 'oa_daily_coupon';
+const COUPON_DATE_KEY = 'oa_coupon_date';
 
-  // Get today's date string
-  getTodayString() {
-    return new Date().toISOString().split('T')[0];
-  }
+// Günün tarihini YYYY-MM-DD formatında al
+function getTodayString() {
+  return new Date().toISOString().split('T')[0];
+}
 
-  // ===== DAILY COUPON (Free Users) =====
+// Günlük kupon var mı kontrol et
+function getDailyCoupon() {
+  const savedDate = localStorage.getItem(COUPON_DATE_KEY);
+  const today = getTodayString();
   
-  // Generate daily coupon (2-3 matches with highest probability)
-  generateDailyCoupon(analyses) {
-    if (!analyses || analyses.length === 0) return null;
-
-    // Filter matches with high confidence (60+)
-    const eligible = analyses.filter(a => a.confidenceScore >= 60);
-    
-    // Sort by confidence and pick top 2-3
-    const sorted = eligible.sort((a, b) => b.bestMarket.prob - a.bestMarket.prob);
-    const count = Math.min(3, Math.max(2, sorted.length));
-    const picks = sorted.slice(0, count);
-
-    if (picks.length === 0) return null;
-
-    const coupon = {
-      date: this.getTodayString(),
-      type: 'daily',
-      picks: picks.map(p => ({
-        fixtureId: p.fixtureId,
-        homeTeam: p.homeTeam,
-        awayTeam: p.awayTeam,
-        league: p.league,
-        matchTime: p.matchTime,
-        prediction: p.bestMarket,
-        confidence: p.confidenceScore,
-        reason: p.reason,
-        odds: p.bestMarket.odds
-      })),
-      totalOdds: picks.reduce((acc, p) => acc * parseFloat(p.bestMarket.odds), 1).toFixed(2),
-      avgConfidence: Math.round(picks.reduce((acc, p) => acc + p.confidenceScore, 0) / picks.length)
-    };
-
-    // Save to storage
-    localStorage.setItem(this.dailyCouponKey, JSON.stringify(coupon));
-    
-    return coupon;
+  if (savedDate !== today) {
+    // Yeni gün - yeni kupon oluştur
+    const newCoupon = generateDailyCouponData();
+    localStorage.setItem(COUPON_STORAGE_KEY, JSON.stringify(newCoupon));
+    localStorage.setItem(COUPON_DATE_KEY, today);
+    return newCoupon;
   }
-
-  // Get daily coupon
-  getDailyCoupon() {
-    const saved = localStorage.getItem(this.dailyCouponKey);
-    if (!saved) return null;
-
-    const coupon = JSON.parse(saved);
-    
-    // Check if it's from today
-    if (coupon.date !== this.getTodayString()) {
-      localStorage.removeItem(this.dailyCouponKey);
-      return null;
-    }
-
-    return coupon;
-  }
-
-  // ===== PREMIUM COUPON =====
   
-  // Generate premium coupon (3 different coupons with different strategies)
-  generatePremiumCoupons(analyses) {
-    if (!analyses || analyses.length === 0) return null;
+  // Mevcut kuponu getir
+  const saved = localStorage.getItem(COUPON_STORAGE_KEY);
+  if (saved) return JSON.parse(saved);
+  
+  // Yoksa yeni oluştur
+  const newCoupon = generateDailyCouponData();
+  localStorage.setItem(COUPON_STORAGE_KEY, JSON.stringify(newCoupon));
+  localStorage.setItem(COUPON_DATE_KEY, today);
+  return newCoupon;
+}
 
-    const coupons = [];
+// Günlük kupon verisi oluştur
+function generateDailyCouponData() {
+  const src = AI_PREDICTIONS || [];
+  const sorted = [...src]
+    .filter(p => p.difficulty !== 'hard' || p.modelScore >= 80)
+    .sort((a, b) => b.modelScore - a.modelScore)
+    .slice(0, 3);
 
-    // Coupon 1: High Confidence (En yüksek güvenli)
-    const highConf = analyses
-      .filter(a => a.confidenceScore >= 75)
-      .sort((a, b) => b.confidenceScore - a.confidenceScore)
-      .slice(0, 3);
-
-    if (highConf.length >= 2) {
-      coupons.push({
-        name: 'Yüksek Güvenli Kupon',
-        strategy: 'high_confidence',
-        picks: highConf.map(p => this.formatPick(p)),
-        totalOdds: highConf.reduce((acc, p) => acc * parseFloat(p.bestMarket.odds), 1).toFixed(2),
-        avgConfidence: Math.round(highConf.reduce((acc, p) => acc + p.confidenceScore, 0) / highConf.length),
-        description: 'En yüksek güven skoruna sahip maçlar'
-      });
-    }
-
-    // Coupon 2: Value Bets (Yüksek oranlı)
-    const valueBets = analyses
-      .filter(a => parseFloat(a.bestMarket.odds) >= 1.70 && a.confidenceScore >= 55)
-      .sort((a, b) => parseFloat(b.bestMarket.odds) - parseFloat(a.bestMarket.odds))
-      .slice(0, 3);
-
-    if (valueBets.length >= 2) {
-      coupons.push({
-        name: 'Değerli Oranlar Kuponu',
-        strategy: 'value',
-        picks: valueBets.map(p => this.formatPick(p)),
-        totalOdds: valueBets.reduce((acc, p) => acc * parseFloat(p.bestMarket.odds), 1).toFixed(2),
-        avgConfidence: Math.round(valueBets.reduce((acc, p) => acc + p.confidenceScore, 0) / valueBets.length),
-        description: 'Yüksek oranlı ve kazanç potansiyeli yüksek maçlar'
-      });
-    }
-
-    // Coupon 3: Mixed Strategy (Karışık)
-    const mixed = this.selectMixedPicks(analyses);
-    if (mixed.length >= 2) {
-      coupons.push({
-        name: 'Kombine Strateji Kuponu',
-        strategy: 'mixed',
-        picks: mixed.map(p => this.formatPick(p)),
-        totalOdds: mixed.reduce((acc, p) => acc * parseFloat(p.bestMarket.odds), 1).toFixed(2),
-        avgConfidence: Math.round(mixed.reduce((acc, p) => acc + p.confidenceScore, 0) / mixed.length),
-        description: 'Farklı stratejilerin birleşimi'
-      });
-    }
-
-    const result = {
-      date: this.getTodayString(),
-      type: 'premium',
-      coupons: coupons
+  const picks = sorted.map(p => {
+    const bestKey = Object.entries(p.markets).reduce((a, b) => b[1].conf > a[1].conf ? b : a)[0];
+    return { 
+      ...p, 
+      selectedMarket: p.markets[bestKey], 
+      marketKey: bestKey,
+      matchTime: getMatchTime(p.home, p.away),
+      matchDate: getTodayString()
     };
+  });
 
-    localStorage.setItem(this.premiumCouponKey, JSON.stringify(result));
-    return result;
+  const totalOdds = picks.reduce((acc, p) => acc * p.selectedMarket.odds, 1).toFixed(2);
+  const avgConf = Math.round(picks.reduce((acc, p) => acc + p.selectedMarket.conf, 0) / picks.length);
+  const combined = Math.round(picks.reduce((a, p) => a * p.selectedMarket.conf / 100, 1) * 100);
+
+  return {
+    date: getTodayString(),
+    picks: picks,
+    totalOdds: totalOdds,
+    avgConf: avgConf,
+    combined: combined,
+    type: avgConf >= 75 ? 'Yüksek Güvenli' : 'Orta Güvenli'
+  };
+}
+
+// Maç saatini bul
+function getMatchTime(home, away) {
+  const match = [...LIVE_MATCHES, ...UPCOMING_MATCHES].find(m => 
+    m.home === home && m.away === away
+  );
+  return match ? (match.time || '20:00') : '20:00';
+}
+
+// ===== PREMİUM KUPON YÖNETİMİ =====
+const PREMIUM_COUPON_KEY = 'oa_premium_coupon';
+const PREMIUM_DATE_KEY = 'oa_premium_date';
+
+function getPremiumCoupon() {
+  const savedDate = localStorage.getItem(PREMIUM_DATE_KEY);
+  const today = getTodayString();
+  
+  if (savedDate !== today) {
+    const newCoupon = generatePremiumCouponData();
+    localStorage.setItem(PREMIUM_COUPON_KEY, JSON.stringify(newCoupon));
+    localStorage.setItem(PREMIUM_DATE_KEY, today);
+    return newCoupon;
   }
+  
+  const saved = localStorage.getItem(PREMIUM_COUPON_KEY);
+  if (saved) return JSON.parse(saved);
+  
+  const newCoupon = generatePremiumCouponData();
+  localStorage.setItem(PREMIUM_COUPON_KEY, JSON.stringify(newCoupon));
+  localStorage.setItem(PREMIUM_DATE_KEY, today);
+  return newCoupon;
+}
 
-  // Select mixed picks from different markets
-  selectMixedPicks(analyses) {
-    const picks = [];
-    
-    // Get best from each market type
-    const resultPicks = analyses.filter(a => a.bestMarket.market === 'result').slice(0, 1);
-    const ouPicks = analyses.filter(a => a.bestMarket.market === 'ou').slice(0, 1);
-    const bttsPicks = analyses.filter(a => a.bestMarket.market === 'btts').slice(0, 1);
-
-    picks.push(...resultPicks, ...ouPicks, ...bttsPicks);
-    
-    // Sort by confidence and take top 3
-    return picks
-      .sort((a, b) => b.confidenceScore - a.confidenceScore)
-      .slice(0, 3);
-  }
-
-  // Format pick for coupon
-  formatPick(analysis) {
+function generatePremiumCouponData() {
+  const src = AI_PREDICTIONS || [];
+  const top5 = [...src].sort((a, b) => b.modelScore - a.modelScore).slice(0, 5);
+  
+  const picks = top5.map(p => {
+    const bestKey = p.bestPick || Object.entries(p.markets).reduce((a, b) => b[1].conf > a[1].conf ? b : a)[0];
     return {
-      fixtureId: analysis.fixtureId,
-      homeTeam: analysis.homeTeam,
-      awayTeam: analysis.awayTeam,
-      league: analysis.league,
-      matchTime: analysis.matchTime,
-      prediction: analysis.bestMarket,
-      confidence: analysis.confidenceScore,
-      reason: analysis.reason,
-      odds: analysis.bestMarket.odds,
-      allMarkets: analysis.markets
+      ...p,
+      selectedMarket: p.markets[bestKey],
+      marketKey: bestKey,
+      matchTime: getMatchTime(p.home, p.away),
+      matchDate: getTodayString()
     };
-  }
+  });
 
-  // Get premium coupons
-  getPremiumCoupons() {
-    const saved = localStorage.getItem(this.premiumCouponKey);
-    if (!saved) return null;
+  const totalOdds = picks.reduce((acc, p) => acc * p.selectedMarket.odds, 1).toFixed(2);
+  
+  return {
+    date: getTodayString(),
+    picks: picks,
+    totalOdds: totalOdds,
+    type: 'Premium'
+  };
+}
 
-    const coupons = JSON.parse(saved);
+// ===== TUTAN ANALİZLER YÖNETİMİ =====
+const SUCCESSFUL_PREDICTIONS_KEY = 'oa_successful_predictions';
+const FINISHED_MATCHES_KEY = 'oa_finished_matches';
+
+// Biten maçları kontrol et ve analiz sonuçlarını kaydet
+function checkFinishedMatches() {
+  const finished = JSON.parse(localStorage.getItem(FINISHED_MATCHES_KEY) || '[]');
+  const successful = JSON.parse(localStorage.getItem(SUCCESSFUL_PREDICTIONS_KEY) || '[]');
+  
+  // Bugünün biten maçlarını simüle et (gerçek uygulamada API'den gelir)
+  const today = getTodayString();
+  const matchesToCheck = AI_PREDICTIONS.filter(p => {
+    // Maç saati geçmişse bitmiş kabul et
+    const matchTime = getMatchTime(p.home, p.away);
+    const [hours, minutes] = matchTime.split(':').map(Number);
+    const matchDateTime = new Date();
+    matchDateTime.setHours(hours, minutes, 0, 0);
+    return new Date() > matchDateTime;
+  });
+  
+  matchesToCheck.forEach(prediction => {
+    const alreadyChecked = finished.find(f => f.id === prediction.id && f.date === today);
+    if (alreadyChecked) return;
     
-    if (coupons.date !== this.getTodayString()) {
-      localStorage.removeItem(this.premiumCouponKey);
-      return null;
+    // Maç sonucunu simüle et (%70 tutma olasılığı)
+    const isSuccess = Math.random() > 0.3;
+    const actualResult = simulateMatchResult(prediction);
+    
+    const resultData = {
+      id: prediction.id,
+      date: today,
+      league: prediction.league,
+      flag: prediction.flag,
+      home: prediction.home,
+      away: prediction.away,
+      prediction: prediction.markets[prediction.bestPick],
+      isSuccess: isSuccess,
+      actualResult: actualResult,
+      modelScore: prediction.modelScore,
+      checkedAt: new Date().toISOString()
+    };
+    
+    finished.push(resultData);
+    
+    if (isSuccess) {
+      successful.push(resultData);
     }
+  });
+  
+  localStorage.setItem(FINISHED_MATCHES_KEY, JSON.stringify(finished));
+  localStorage.setItem(SUCCESSFUL_PREDICTIONS_KEY, JSON.stringify(successful));
+  
+  return { finished, successful };
+}
 
-    return coupons;
-  }
-
-  // ===== COUPON DISPLAY =====
-
-  // Render coupon card
-  renderCouponCard(coupon, isPremium = false) {
-    const confidenceClass = coupon.avgConfidence >= 75 ? 'high' : 
-                           coupon.avgConfidence >= 60 ? 'medium' : 'low';
-
-    return `
-      <div class="coupon-card ${isPremium ? 'premium' : 'daily'}">
-        <div class="coupon-header">
-          <div class="coupon-title">
-            ${isPremium ? '<i class="fas fa-crown"></i>' : '<i class="fas fa-ticket-alt"></i>'}
-            ${coupon.name || 'Günlük Kupon'}
-          </div>
-          <div class="coupon-stats">
-            <span class="odds">Oran: ${coupon.totalOdds}</span>
-            <span class="confidence ${confidenceClass}">Güven: %${coupon.avgConfidence}</span>
-          </div>
-        </div>
-        
-        ${coupon.description ? `<div class="coupon-description">${coupon.description}</div>` : ''}
-        
-        <div class="coupon-matches">
-          ${coupon.picks.map((pick, idx) => this.renderPickRow(pick, idx + 1)).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  // Render individual pick row
-  renderPickRow(pick, number) {
-    return `
-      <div class="pick-row" data-fixture="${pick.fixtureId}">
-        <div class="pick-number">${number}</div>
-        <div class="pick-info">
-          <div class="pick-teams">${pick.homeTeam} vs ${pick.awayTeam}</div>
-          <div class="pick-league">${pick.league} | ${new Date(pick.matchTime).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</div>
-        </div>
-        <div class="pick-prediction">
-          <div class="pick-label">${pick.prediction.label}</div>
-          <div class="pick-odds">@${pick.odds}</div>
-        </div>
-        
-        <div class="pick-confidence">
-          <div class="confidence-bar">
-            <div class="confidence-fill" style="width: ${pick.confidence}%"></div>
-          </div>
-          <span>%${pick.confidence}</span>
-        </div>
-        
-        <div class="prediction-status" id="status-${pick.fixtureId}"></div>
-      </div>
-    `;
-  }
-
-  // Update prediction status in UI
-  updatePredictionStatus(fixtureId, status) {
-    const statusEl = document.getElementById(`status-${fixtureId}`);
-    if (!statusEl) return;
-
-    if (status === 'winning') {
-      statusEl.innerHTML = '<div class="status-light winning">✓</div>';
-      statusEl.classList.add('active');
-    } else if (status === 'losing') {
-      statusEl.innerHTML = '<div class="status-light losing">✗</div>';
-      statusEl.classList.add('active');
-    } else {
-      statusEl.innerHTML = '<div class="status-light pending">○</div>';
-    }
+// Maç sonucunu simüle et
+function simulateMatchResult(prediction) {
+  const market = prediction.markets[prediction.bestPick];
+  const outcomes = ['1', 'X', '2', 'Üst', 'Alt', 'Var', 'Yok'];
+  
+  // Tahminin tutma olasılığı model skoruna bağlı
+  const successChance = prediction.modelScore / 100;
+  
+  if (Math.random() < successChance) {
+    return market.pick;
+  } else {
+    // Rastgele farklı bir sonuç
+    const otherOutcomes = outcomes.filter(o => o !== market.pick);
+    return otherOutcomes[Math.floor(Math.random() * otherOutcomes.length)];
   }
 }
 
-// Create global instance
-const couponService = new CouponService();
+// Tutan analizleri getir
+function getSuccessfulPredictions() {
+  return JSON.parse(localStorage.getItem(SUCCESSFUL_PREDICTIONS_KEY) || '[]');
+}
+
+// Tüm biten maçları getir
+function getFinishedMatches() {
+  return JSON.parse(localStorage.getItem(FINISHED_MATCHES_KEY) || '[]');
+}
+
+// Başarı istatistiklerini hesapla
+function getSuccessStats() {
+  const finished = getFinishedMatches();
+  const successful = getSuccessfulPredictions();
+  
+  const today = getTodayString();
+  const todayFinished = finished.filter(f => f.date === today);
+  const todaySuccessful = successful.filter(f => f.date === today);
+  
+  return {
+    totalFinished: finished.length,
+    totalSuccessful: successful.length,
+    successRate: finished.length > 0 ? Math.round((successful.length / finished.length) * 100) : 0,
+    todayFinished: todayFinished.length,
+    todaySuccessful: todaySuccessful.length,
+    todayRate: todayFinished.length > 0 ? Math.round((todaySuccessful.length / todayFinished.length) * 100) : 0
+  };
+}
+
+// ===== YZ ANALİZLERİNİ GÜNCELLE - ORANLAR VE SAATLER =====
+// AI_PREDICTIONS'a oran ve saat bilgisi ekle
+function enrichAIPredictions() {
+  if (typeof AI_PREDICTIONS === 'undefined') return [];
+  
+  return AI_PREDICTIONS.map(pred => {
+    const match = [...LIVE_MATCHES, ...UPCOMING_MATCHES].find(m => 
+      m.home === pred.home && m.away === pred.away
+    );
+    
+    if (match) {
+      return {
+        ...pred,
+        matchTime: match.time || '20:00',
+        matchOdds: match.odds || { h: '1.80', d: '3.40', a: '4.20' }
+      };
+    }
+    return pred;
+  });
+}
+
+// Zenginleştirilmiş tahminleri global değişkene ata
+window.ENRICHED_AI_PREDICTIONS = enrichAIPredictions();
