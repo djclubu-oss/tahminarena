@@ -4,22 +4,19 @@
   "routes": [
     { "src": "/", "dest": "/index.html" },
     { "src": "/register", "dest": "/register.html" },
-    { "src": "/dashboard", "dest": "/dashboard.html" },
-    { "src": "/admin", "dest": "/admin.html" }
+    { "src": "/dashboard", "dest": "/dashboard.html" }
   ],
   "headers": [
     {
       "source": "/css/(.*)",
       "headers": [
-        { "key": "Content-Type", "value": "text/css" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        { "key": "Content-Type", "value": "text/css" }
       ]
     },
     {
       "source": "/js/(.*)",
       "headers": [
-        { "key": "Content-Type", "value": "application/javascript" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        { "key": "Content-Type", "value": "application/javascript" }
       ]
     }
   ]
