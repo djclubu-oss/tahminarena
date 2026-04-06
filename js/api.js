@@ -1,5 +1,5 @@
-// ===== API Functions =====
-
+// ===== Main Application v2 =====
+class App {
 class ApiService {
   constructor() {
     this.baseUrl = 'https://v3.football.api-sports.io';
