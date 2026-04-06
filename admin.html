@@ -1,112 +1,136 @@
 diff --git a/admin.html b/admin.html
-index 26253ecb2047f9f4851d3e9e4626cbd6b05b9096..2230b70c945350be4ba3704d5c509b99476d4e77 100644
+index b5cf345116f0d51201535647eedf03ad7024a7f4..b3fb99a7bb5814ca3ef11b7f3e99baebb9493adc 100644
 --- a/admin.html
 +++ b/admin.html
-@@ -80,64 +80,63 @@
-       <div class="admin-card">
-         <h2><i class="fas fa-users"></i> Kayıtlı Kullanıcılar</h2>
-         <div id="userList"></div>
-       </div>
- 
-       <div class="admin-card">
-         <h2><i class="fas fa-crown"></i> Premium İstatistikleri</h2>
-         <div id="premiumStats" style="display:flex;gap:24px;flex-wrap:wrap"></div>
-       </div>
- 
-     </div>
-   </div>
- 
-   <script>
-     const ADMIN_EMAIL = 'djclubu@tahminarena.com';
- 
-     function adminLogin() {
-       const email = document.getElementById('adminEmail').value.trim();
-       const pass  = document.getElementById('adminPass').value;
-       const errEl = document.getElementById('adminLoginError');
- 
-       if (email !== ADMIN_EMAIL) {
-         errEl.textContent = 'Bu e-posta admin değil!'; return;
-       }
- 
--      const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
-       const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
-       const adminUser = users.find(u => u.email === email);
- 
--      if (!adminUser && !(session && session.email === ADMIN_EMAIL)) {
--        errEl.textContent = 'Admin hesabı bulunamadı. Önce siteden kayıt olun.'; return;
-+      if (!adminUser) {
-+        errEl.textContent = 'Admin hesabı bulunamadı. Önce admin hesabı ile kayıt olun.'; return;
-       }
- 
--      if (adminUser && adminUser.pass !== btoa(pass)) {
-+      if (adminUser.pass !== btoa(pass)) {
-         errEl.textContent = 'Şifre hatalı!'; return;
-       }
- 
-       localStorage.setItem('oa_admin_session', '1');
--      showAdminPanel(session || { name: 'Admin', email });
-+      showAdminPanel({ name: adminUser.name || 'Admin', email: adminUser.email });
-     }
- 
-     function showAdminPanel(session) {
-       document.getElementById('adminLoginOverlay').style.display = 'none';
-       document.getElementById('adminContent').style.display = 'block';
-       document.getElementById('adminWelcome').textContent = 'Hoş geldin, ' + (session.name || 'Admin');
-       renderUserList();
-       renderPremiumStats();
-     }
- 
-     function renderUserList() {
-       const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
-       const container = document.getElementById('userList');
- 
-       if (users.length === 0) {
-         container.innerHTML = '<div class="empty-users"><i class="fas fa-user-slash" style="font-size:2rem;display:block;margin-bottom:12px"></i>Henüz kayıtlı kullanıcı yok.</div>';
-         return;
-       }
- 
-       container.innerHTML = users.map((u, i) => `
-         <div class="user-row" id="user-row-${i}">
-           <div class="user-row-info">
-             <i class="fas fa-user-circle"></i>
-             <div>
-               <div class="user-row-name">${u.name} ${u.email === ADMIN_EMAIL ? '<span style="color:var(--red);font-size:.75rem">[ADMİN]</span>' : ''}</div>
-@@ -161,35 +160,32 @@
-       if (!users[idx]) return;
-       users[idx].premium = !users[idx].premium;
-       localStorage.setItem('oa_users', JSON.stringify(users));
-       renderUserList();
-       renderPremiumStats();
-     }
- 
-     function renderPremiumStats() {
-       const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
-       const totalUsers = users.length;
-       const premiumCount = users.filter(u => u.premium).length;
- 
-       document.getElementById('premiumStats').innerHTML = `
-         <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-users"></i></div>
-           <div><div class="stat-num">${totalUsers}</div><div class="stat-label">Toplam Üye</div></div>
-         </div>
-         <div class="stat-card"><div class="stat-icon yellow"><i class="fas fa-crown"></i></div>
-           <div><div class="stat-num">${premiumCount}</div><div class="stat-label">Premium Üye</div></div>
-         </div>
-         <div class="stat-card"><div class="stat-icon green"><i class="fas fa-user-check"></i></div>
-           <div><div class="stat-num">${totalUsers - premiumCount}</div><div class="stat-label">Normal Üye</div></div>
-         </div>`;
-     }
- 
-     document.addEventListener('DOMContentLoaded', () => {
--      const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
--      if (session && session.email === ADMIN_EMAIL) {
--        showAdminPanel(session);
--      } else if (localStorage.getItem('oa_admin_session')) {
--        showAdminPanel({ name: 'Admin', email: ADMIN_EMAIL });
--      }
-+      // Güvenlik nedeniyle localStorage oturumu ile otomatik admin geçişi yapılmaz.
-+      // Her girişte admin kimlik doğrulaması zorunludur.
-+      localStorage.removeItem('oa_admin_session');
-     });
-   </script>
- </body>
- </html>
+@@ -1,112 +1,19 @@
+-diff --git a/admin.html b/admin.html
+-index 26253ecb2047f9f4851d3e9e4626cbd6b05b9096..2230b70c945350be4ba3704d5c509b99476d4e77 100644
+---- a/admin.html
+-+++ b/admin.html
+-@@ -80,64 +80,63 @@
+-       <div class="admin-card">
+-         <h2><i class="fas fa-users"></i> Kayıtlı Kullanıcılar</h2>
+-         <div id="userList"></div>
+-       </div>
+- 
+-       <div class="admin-card">
+-         <h2><i class="fas fa-crown"></i> Premium İstatistikleri</h2>
+-         <div id="premiumStats" style="display:flex;gap:24px;flex-wrap:wrap"></div>
+-       </div>
+- 
+-     </div>
+-   </div>
+- 
+-   <script>
+-     const ADMIN_EMAIL = 'djclubu@tahminarena.com';
+- 
+-     function adminLogin() {
+-       const email = document.getElementById('adminEmail').value.trim();
+-       const pass  = document.getElementById('adminPass').value;
+-       const errEl = document.getElementById('adminLoginError');
+- 
+-       if (email !== ADMIN_EMAIL) {
+-         errEl.textContent = 'Bu e-posta admin değil!'; return;
+-       }
+- 
+--      const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
+-       const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+-       const adminUser = users.find(u => u.email === email);
+- 
+--      if (!adminUser && !(session && session.email === ADMIN_EMAIL)) {
+--        errEl.textContent = 'Admin hesabı bulunamadı. Önce siteden kayıt olun.'; return;
+-+      if (!adminUser) {
+-+        errEl.textContent = 'Admin hesabı bulunamadı. Önce admin hesabı ile kayıt olun.'; return;
+-       }
+- 
+--      if (adminUser && adminUser.pass !== btoa(pass)) {
+-+      if (adminUser.pass !== btoa(pass)) {
+-         errEl.textContent = 'Şifre hatalı!'; return;
+-       }
+- 
+-       localStorage.setItem('oa_admin_session', '1');
+--      showAdminPanel(session || { name: 'Admin', email });
+-+      showAdminPanel({ name: adminUser.name || 'Admin', email: adminUser.email });
+-     }
+- 
+-     function showAdminPanel(session) {
+-       document.getElementById('adminLoginOverlay').style.display = 'none';
+-       document.getElementById('adminContent').style.display = 'block';
+-       document.getElementById('adminWelcome').textContent = 'Hoş geldin, ' + (session.name || 'Admin');
+-       renderUserList();
+-       renderPremiumStats();
+-     }
+- 
+-     function renderUserList() {
+-       const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+-       const container = document.getElementById('userList');
+- 
+-       if (users.length === 0) {
+-         container.innerHTML = '<div class="empty-users"><i class="fas fa-user-slash" style="font-size:2rem;display:block;margin-bottom:12px"></i>Henüz kayıtlı kullanıcı yok.</div>';
+-         return;
+-       }
+- 
+-       container.innerHTML = users.map((u, i) => `
+-         <div class="user-row" id="user-row-${i}">
+-           <div class="user-row-info">
+-             <i class="fas fa-user-circle"></i>
+-             <div>
+-               <div class="user-row-name">${u.name} ${u.email === ADMIN_EMAIL ? '<span style="color:var(--red);font-size:.75rem">[ADMİN]</span>' : ''}</div>
+-@@ -161,35 +160,32 @@
+-       if (!users[idx]) return;
+-       users[idx].premium = !users[idx].premium;
+-       localStorage.setItem('oa_users', JSON.stringify(users));
+-       renderUserList();
+-       renderPremiumStats();
+-     }
+- 
+-     function renderPremiumStats() {
+-       const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+-       const totalUsers = users.length;
+-       const premiumCount = users.filter(u => u.premium).length;
+- 
+-       document.getElementById('premiumStats').innerHTML = `
+-         <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-users"></i></div>
+-           <div><div class="stat-num">${totalUsers}</div><div class="stat-label">Toplam Üye</div></div>
+-         </div>
+-         <div class="stat-card"><div class="stat-icon yellow"><i class="fas fa-crown"></i></div>
+-           <div><div class="stat-num">${premiumCount}</div><div class="stat-label">Premium Üye</div></div>
+-         </div>
+-         <div class="stat-card"><div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+-           <div><div class="stat-num">${totalUsers - premiumCount}</div><div class="stat-label">Normal Üye</div></div>
+-         </div>`;
+-     }
+- 
+-     document.addEventListener('DOMContentLoaded', () => {
+--      const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
+--      if (session && session.email === ADMIN_EMAIL) {
+--        showAdminPanel(session);
+--      } else if (localStorage.getItem('oa_admin_session')) {
+--        showAdminPanel({ name: 'Admin', email: ADMIN_EMAIL });
+--      }
+-+      // Güvenlik nedeniyle localStorage oturumu ile otomatik admin geçişi yapılmaz.
+-+      // Her girişte admin kimlik doğrulaması zorunludur.
+-+      localStorage.removeItem('oa_admin_session');
+-     });
+-   </script>
+- </body>
+- </html>
++<!DOCTYPE html>
++<html lang="tr">
++<head>
++  <meta charset="UTF-8" />
++  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
++  <title>TahminArena - Admin</title>
++  <base href="/">
++  <link rel="stylesheet" href="css/style.css"/>
++</head>
++<body class="auth-body">
++  <main class="auth-main single">
++    <section class="auth-card">
++      <h1>Admin Panel</h1>
++      <p class="muted">Bu sürümde admin ekranı sadeleştirildi. Kullanıcı premium yönetimini bir sonraki adımda ekleyebiliriz.</p>
++      <a class="btn-primary" href="./dashboard.html">Dashboard'a Dön</a>
++    </section>
++  </main>
++</body>
++</html>
