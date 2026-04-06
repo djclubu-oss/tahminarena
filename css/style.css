@@ -335,7 +335,111 @@ a { text-decoration: none; color: inherit; }
   display: flex; align-items: center; gap: 8px;
 }
 
-/* ===== GÜNLÜK KUPON STİLLERİ ===== */
+/* ===== YZ TAHMİN KARTLARI ===== */
+.ai-matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: all 0.3s;
+}
+
+.ai-card.premium-only {
+  filter: blur(8px);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ai-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ai-league {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.ai-confidence {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ai-confidence.high { background: rgba(34,197,94,0.2); color: var(--green); }
+.ai-confidence.medium { background: rgba(245,158,11,0.2); color: var(--accent); }
+.ai-confidence.low { background: rgba(239,68,68,0.2); color: var(--red); }
+
+.ai-teams {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.ai-prediction {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ai-pick {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ai-odd {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.ai-reason {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Premium Kilit Overlay */
+.premium-lock-overlay {
+  text-align: center;
+  padding: 40px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.premium-lock-overlay i {
+  font-size: 3rem;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.premium-lock-overlay h3 {
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.premium-contact {
+  color: var(--text-muted);
+  margin-top: 15px;
+}
+
+.premium-contact strong {
+  color: var(--accent);
+}
+
+/* ===== GÜNLÜK KUPON ===== */
 .coupon-hero {
   background: linear-gradient(135deg, #1e1b4b 0%, #1a2744 60%, #14532d 100%);
   border: 1px solid #3730a3;
@@ -426,7 +530,6 @@ a { text-decoration: none; color: inherit; }
 
 .coupon-match-name span {
   color: var(--text-muted);
-  font-weight: 400;
 }
 
 .coupon-pick-row {
@@ -454,6 +557,12 @@ a { text-decoration: none; color: inherit; }
   font-weight: 700;
 }
 
+.coupon-extra-stats {
+  font-size: .75rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
 .coupon-disclaimer {
   display: flex;
   align-items: center;
@@ -476,6 +585,7 @@ a { text-decoration: none; color: inherit; }
   .sidebar { position: fixed; height: 100vh; transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
   .stat-cards { grid-template-columns: repeat(2, 1fr); }
+  .ai-matches-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 500px) {
   .auth-card { padding: 24px; }
