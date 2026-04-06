@@ -54,45 +54,61 @@ class ApiService {
 
   setCache(key, data) {
     this.cache.set(key, { data, timestamp: Date.now() });
-  }
+n  }
 
-  async getAllLiveMatches() {
+  // Get live matches from selected leagues only
+  async getLiveMatches() {
     return this.fetch('/fixtures', { 
       live: 'all',
       league: ALL_LEAGUE_IDS
     });
   }
 
+  // Get live odds for a fixture
   async getLiveOdds(fixtureId) {
     return this.fetch('/odds/live', { fixture: fixtureId });
   }
 
+  // Get live matches with odds
   async getLiveMatchesWithOdds() {
     try {
-      const matchesData = await this.getAllLiveMatches();
+      const matchesData = await this.getLiveMatches();
       const matches = matchesData.response || [];
 
+      // Get odds for first 30 matches (rate limiting)
       const matchesWithOdds = await Promise.all(
-        matches.slice(0, 50).map(async (match) => {
+        matches.slice(0, 30).map(async (match) => {
           try {
             const oddsData = await this.getLiveOdds(match.fixture.id);
             return {
               ...match,
-              odds: this.parseOdds(oddsData.response)
+              odds: this.parseOdds(oddsData.response),
+              category: this.getLeagueCategory(match.league.id)
             };
           } catch (e) {
-            return { ...match, odds: null };
+            return { 
+              ...match, 
+              odds: null,
+              category: this.getLeagueCategory(match.league.id)
+            };
           }
         })
       );
 
       return { response: matchesWithOdds };
     } catch (error) {
-      console.error('Live matches with odds error:', error);
+      console.error('Live matches error:', error);
       throw error;
     }
   }
 
+  // Get league category
+  getLeagueCategory(leagueId) {
+    const league = Object.values(LEAGUES).find(l => l.id === leagueId);
+    return league?.category || 'Diğer';
+  }
+
+  // Parse odds
   parseOdds(oddsResponse) {
     if (!oddsResponse || !oddsResponse[0]) return null;
     
@@ -102,15 +118,18 @@ class ApiService {
 
     const bets = bookmaker.bets || [];
     
+    // Match winner (1X2)
     const matchWinner = bets.find(b => b.id === 1)?.values || [];
     const homeOdd = matchWinner.find(v => v.value === 'Home')?.odd;
     const drawOdd = matchWinner.find(v => v.value === 'Draw')?.odd;
     const awayOdd = matchWinner.find(v => v.value === 'Away')?.odd;
 
+    // Over/Under 2.5
     const ouBets = bets.find(b => b.id === 5)?.values || [];
     const over25 = ouBets.find(v => v.value === 'Over 2.5')?.odd;
     const under25 = ouBets.find(v => v.value === 'Under 2.5')?.odd;
 
+    // BTTS
     const bttsBets = bets.find(b => b.id === 10)?.values || [];
     const bttsYes = bttsBets.find(v => v.value === 'Yes')?.odd;
     const bttsNo = bttsBets.find(v => v.value === 'No')?.odd;
@@ -121,6 +140,44 @@ class ApiService {
       btts: { yes: bttsYes, no: bttsNo },
       updated: new Date().toLocaleTimeString('tr-TR')
     };
+  }
+
+  // Get today's fixtures
+  async getTodayFixtures() {
+    const today = new Date().toISOString().split('T')[0];
+    return this.fetch('/fixtures', { 
+      date: today, 
+      league: ALL_LEAGUE_IDS 
+    });
+  }
+
+  // Get team statistics
+  async getTeamStatistics(teamId, leagueId) {
+    return this.fetch('/teams/statistics', {
+      team: teamId,
+      league: leagueId,
+      season: CURRENT_SEASON
+    });
+  }
+
+  // Get predictions
+  async getPredictions(fixtureId) {
+    return this.fetch('/predictions', { fixture: fixtureId });
+  }
+
+  // Get injuries
+  async getInjuries(fixtureId) {
+    return this.fetch('/injuries', { fixture: fixtureId });
+  }
+
+  // Get head to head
+  async getHeadToHead(team1Id, team2Id) {
+    return this.fetch('/fixtures/headtohead', { h2h: `${team1Id}-${team2Id}` });
+  }
+
+  // Get standings
+  async getStandings(leagueId) {
+    return this.fetch('/standings', { league: leagueId, season: CURRENT_SEASON });
   }
 
   getRequestCount() {
