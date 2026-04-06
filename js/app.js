@@ -391,4 +391,27 @@ function initDashboard() {
 
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('dashUserName')) initDashboard();
-});
+});// ===== SECTION NAV =====
+const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare','picks','premium'];
+const TITLES = {
+  live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
+  upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
+  ai:'YZ Tahmin', coupon:'Günlük Kupon', compare:'Oran Karşılaştırma',
+  picks:'Seçimlerim', premium:'Premium Kupon'
+};
+
+function showSection(key) {
+  SECTIONS.forEach(s => {
+    const el = document.getElementById('sec-'+s);
+    if (el) el.classList.toggle('hidden', s !== key);
+  });
+  const titleEl = document.getElementById('sectionTitle');
+  if (titleEl) titleEl.textContent = TITLES[key] || '';
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    el.classList.toggle('active', onclick.includes(`'${key}'`));
+  });
+  if (key === 'picks') renderPicks();
+  if (key === 'ai') renderAIPredictions();
+}
+
