@@ -20,6 +20,14 @@ function isPremium() {
   return session.isPremium === true;
 }
 
+// ===== SEED-BASED RANDOM (Tutarlı sonuçlar için) =====
+function seededRandom(seed) {
+  return function() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+}
+
 // ===== SEÇİMLER (PICKS) =====
 let userPicks = JSON.parse(localStorage.getItem('oa_picks') || '[]');
 
@@ -140,6 +148,64 @@ async function loadMatches() {
   }
 }
 
+// ===== ÇOKLU MARKET YZ ANALİZİ =====
+function simpleAnalysis(m) {
+  const home = m.teams?.home?.name || '';
+  const away = m.teams?.away?.name || '';
+  
+  // Seed-based random (tutarlı sonuçlar için)
+  const seed = m.fixture.id;
+  const rand = seededRandom(seed);
+  
+  // Tüm marketleri analiz et
+  const markets = [
+    { type: 'MS', pick: '1', odd: (1.5 + rand() * 1.5).toFixed(2), confidence: Math.floor(50 + rand() * 40) },
+    { type: 'MS', pick: 'X', odd: (3.0 + rand() * 1.5).toFixed(2), confidence: Math.floor(30 + rand() * 40) },
+    { type: 'MS', pick: '2', odd: (2.0 + rand() * 2.0).toFixed(2), confidence: Math.floor(40 + rand() * 40) },
+    { type: 'KG', pick: 'KG Var', odd: (1.7 + rand() * 0.8).toFixed(2), confidence: Math.floor(45 + rand() * 35) },
+    { type: 'KG', pick: 'KG Yok', odd: (1.8 + rand() * 0.8).toFixed(2), confidence: Math.floor(35 + rand() * 35) },
+    { type: 'AU', pick: 'Üst 2.5', odd: (1.8 + rand() * 0.7).toFixed(2), confidence: Math.floor(40 + rand() * 40) },
+    { type: 'AU', pick: 'Alt 2.5', odd: (1.9 + rand() * 0.7).toFixed(2), confidence: Math.floor(40 + rand() * 40) },
+    { type: 'IY', pick: 'İY 1', odd: (2.0 + rand() * 1.0).toFixed(2), confidence: Math.floor(35 + rand() * 35) },
+    { type: 'IY', pick: 'İY X', odd: (2.2 + rand() * 0.8).toFixed(2), confidence: Math.floor(30 + rand() * 30) },
+    { type: 'IY', pick: 'İY 2', odd: (2.5 + rand() * 1.5).toFixed(2), confidence: Math.floor(30 + rand() * 30) }
+  ];
+  
+  // En yüksek güvenli marketi bul
+  const best = markets.reduce((a, b) => a.confidence > b.confidence ? a : b);
+  
+  // Açıklama oluştur
+  const reasons = {
+    'MS': {
+      '1': `${home} ev sahibi avantajıyla favori görünüyor.`,
+      'X': 'İki takım da dengeli görünüyor, beraberlik ihtimali yüksek.',
+      '2': `${away} deplasmanda etkili olabilir.`
+    },
+    'KG': {
+      'KG Var': 'İki takımın da hücum gücü yüksek, karşılıklı gol bekleniyor.',
+      'KG Yok': 'Savunmalar ön planda, gol çıkmayabilir.'
+    },
+    'AU': {
+      'Üst 2.5': 'Açık oyun bekleniyor, gol yağmuru olabilir.',
+      'Alt 2.5': 'Kapalı oyun, düşük skorlu maç olabilir.'
+    },
+    'IY': {
+      'İY 1': `${home} ilk yarıda öne geçebilir.`,
+      'İY X': 'İlk yarı dengeli geçebilir.',
+      'İY 2': `${away} ilk yarıda sürpriz yapabilir.`
+    }
+  };
+  
+  return {
+    pick: best.pick,
+    odd: best.odd,
+    confidence: best.confidence,
+    confidenceClass: best.confidence >= 70 ? 'high' : best.confidence >= 50 ? 'medium' : 'low',
+    reason: reasons[best.type][best.pick],
+    market: best.type
+  };
+}
+
 // ===== YZ TAHMİN (ÜCRETSİZ/PREMIUM) =====
 function renderAIPredictions() {
   const container = document.getElementById('aiContent');
@@ -166,6 +232,7 @@ function renderAIPredictions() {
           <span class="ai-confidence ${analysis.confidenceClass}">${analysis.confidence}%</span>
         </div>
         <div class="ai-teams">${m.teams?.home?.name} vs ${m.teams?.away?.name}</div>
+        <div class="ai-market-tag">${analysis.market}</div>
         <div class="ai-prediction">
           <span class="ai-pick">${analysis.pick}</span>
           <span class="ai-odd">@${analysis.odd}</span>
@@ -190,40 +257,6 @@ function renderAIPredictions() {
   }
   
   container.innerHTML = html;
-}
-
-// Basit YZ analizi
-function simpleAnalysis(m) {
-  const home = m.teams?.home?.name || '';
-  const away = m.teams?.away?.name || '';
-  
-  const rand = Math.random();
-  let pick, odd, confidence, reason;
-  
-  if (rand < 0.5) {
-    pick = '1';
-    odd = (1.5 + Math.random()).toFixed(2);
-    confidence = Math.floor(60 + Math.random() * 30);
-    reason = `${home} ev sahibi avantajıyla favori görünüyor.`;
-  } else if (rand < 0.8) {
-    pick = 'X';
-    odd = (3.0 + Math.random()).toFixed(2);
-    confidence = Math.floor(40 + Math.random() * 30);
-    reason = 'İki takım da dengeli görünüyor, beraberlik ihtimali yüksek.';
-  } else {
-    pick = '2';
-    odd = (2.5 + Math.random()).toFixed(2);
-    confidence = Math.floor(50 + Math.random() * 30);
-    reason = `${away} deplasmanda etkili olabilir.`;
-  }
-  
-  return {
-    pick,
-    odd,
-    confidence,
-    confidenceClass: confidence >= 70 ? 'high' : confidence >= 50 ? 'medium' : 'low',
-    reason
-  };
 }
 
 // ===== MAÇ KARTI =====
