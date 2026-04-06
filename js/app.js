@@ -3,52 +3,35 @@
 class App {
   constructor() {
     this.currentSection = 'live';
-    this.analyses = [];
     this.liveMatches = [];
     this.myCoupon = [];
     this.init();
   }
 
   async init() {
-    // Check authentication
     if (document.getElementById('dashUserName')) {
       if (!authService.requireAuth()) return;
       this.initDashboard();
     }
-
-    // Setup event listeners
     this.setupEventListeners();
   }
 
-  // Initialize dashboard
   async initDashboard() {
     const user = authService.getCurrentUser();
     
-    // Set user info
     const nameEl = document.getElementById('dashUserName');
     const emailEl = document.getElementById('dashUserEmail');
     if (nameEl) nameEl.textContent = user.name;
     if (emailEl) emailEl.textContent = user.email;
 
-    // Start clock
     this.startClock();
-
-    // Load my coupon from storage
     this.loadMyCoupon();
-
-    // Load initial data
     await this.loadLiveMatches();
-
-    // Start live updates
     this.startLiveUpdates();
-
-    // Setup navigation
     this.setupNavigation();
   }
 
-  // Setup event listeners
   setupEventListeners() {
-    // Login form
     const loginForm = document.querySelector('form[onsubmit="handleLogin(event)"]');
     if (loginForm) {
       loginForm.addEventListener('submit', (e) => {
@@ -57,7 +40,6 @@ class App {
       });
     }
 
-    // Register form
     const registerForm = document.querySelector('form[onsubmit="handleRegister(event)"]');
     if (registerForm) {
       registerForm.addEventListener('submit', (e) => {
@@ -67,7 +49,6 @@ class App {
     }
   }
 
-  // Handle login
   handleLogin() {
     const email = document.getElementById('loginEmail')?.value;
     const password = document.getElementById('loginPass')?.value;
@@ -87,7 +68,6 @@ class App {
     }
   }
 
-  // Handle register
   handleRegister() {
     const name = document.getElementById('regName')?.value;
     const email = document.getElementById('regEmail')?.value;
@@ -113,23 +93,18 @@ class App {
     }
   }
 
-  // Load live matches from ALL leagues
   async loadLiveMatches() {
     try {
-      // Show loading
       const container = document.getElementById('liveMatches');
       if (container) {
         container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Tüm liglerden canlı maçlar yükleniyor...</p></div>';
       }
 
-      // Get live matches with odds
       const data = await apiService.getLiveMatchesWithOdds();
       this.liveMatches = data.response || [];
 
-      // Update counts
       document.getElementById('liveCount').textContent = this.liveMatches.length;
       
-      // Update API info
       const apiInfo = document.getElementById('apiInfo');
       if (apiInfo) {
         apiInfo.innerHTML = `<span class="requests">${apiService.getRequestCount()} / 75,000</span>`;
@@ -142,23 +117,17 @@ class App {
         return;
       }
 
-      // Render matches
       this.renderLiveMatches(this.liveMatches);
 
     } catch (error) {
       console.error('Load live matches error:', error);
       const container = document.getElementById('liveMatches');
       if (container) {
-        container.innerHTML = `<div class="empty-state error">
-          <i class="fas fa-exclamation-triangle"></i>
-          <p>Maçlar yüklenirken hata oluştu.</p>
-          <small>${error.message}</small>
-        </div>`;
+        container.innerHTML = `<div class="empty-state error"><i class="fas fa-exclamation-triangle"></i><p>Maçlar yüklenirken hata oluştu.</p><small>${error.message}</small></div>`;
       }
     }
   }
 
-  // Render live matches with odds
   renderLiveMatches(matches) {
     const container = document.getElementById('liveMatches');
     if (!container) return;
@@ -241,15 +210,12 @@ class App {
     }).join('');
   }
 
-  // Start live updates
   startLiveUpdates() {
-    // Her 30 saniyede bir güncelle
     setInterval(() => {
       this.loadLiveMatches();
     }, 30000);
   }
 
-  // Toggle match in my coupon
   toggleCouponMatch(fixtureId) {
     const match = this.liveMatches.find(m => m.fixture.id === fixtureId);
     if (!match) return;
@@ -257,10 +223,8 @@ class App {
     const index = this.myCoupon.findIndex(c => c.fixtureId === fixtureId);
     
     if (index >= 0) {
-      // Remove from coupon
       this.myCoupon.splice(index, 1);
     } else {
-      // Add to coupon
       this.myCoupon.push({
         fixtureId: match.fixture.id,
         homeTeam: match.teams.home.name,
@@ -272,15 +236,13 @@ class App {
       });
     }
 
-    // Save to storage
-    localStorage.setItem(STORAGE_KEYS.USER_COUPON, JSON.stringify(this.myCoupon));
+    const key = typeof STORAGE_KEYS !== 'undefined' ? STORAGE_KEYS.USER_COUPON : 'ta_user_coupon';
+    localStorage.setItem(key, JSON.stringify(this.myCoupon));
 
-    // Update UI
     this.updateCouponButton(fixtureId, index < 0);
     this.updateMyCouponUI();
   }
 
-  // Update coupon button
   updateCouponButton(fixtureId, added) {
     const btn = document.getElementById(`btn-${fixtureId}`);
     if (btn) {
@@ -289,16 +251,15 @@ class App {
     }
   }
 
-  // Load my coupon from storage
   loadMyCoupon() {
-    const saved = localStorage.getItem(STORAGE_KEYS.USER_COUPON);
+    const key = typeof STORAGE_KEYS !== 'undefined' ? STORAGE_KEYS.USER_COUPON : 'ta_user_coupon';
+    const saved = localStorage.getItem(key);
     if (saved) {
       this.myCoupon = JSON.parse(saved);
       this.updateMyCouponUI();
     }
   }
 
-  // Update my coupon UI
   updateMyCouponUI() {
     const countEl = document.getElementById('my-coupon-count');
     const countDisplayEl = document.getElementById('myCouponCount');
@@ -306,13 +267,11 @@ class App {
     const winEl = document.getElementById('myCouponWin');
     const container = document.getElementById('myCouponMatches');
 
-    // Update badge
     if (countEl) {
       countEl.textContent = this.myCoupon.length;
       countEl.style.display = this.myCoupon.length > 0 ? 'inline-flex' : 'none';
     }
 
-    // Update stats
     if (countDisplayEl) countDisplayEl.textContent = this.myCoupon.length;
     
     const totalOdds = this.myCoupon.reduce((acc, c) => acc * parseFloat(c.odds), 1).toFixed(2);
@@ -321,7 +280,6 @@ class App {
     const amount = parseFloat(document.getElementById('couponAmount')?.value || 100);
     if (winEl) winEl.textContent = (amount * totalOdds).toFixed(0) + '₺';
 
-    // Update list
     if (container) {
       if (this.myCoupon.length === 0) {
         container.innerHTML = `
@@ -362,37 +320,33 @@ class App {
     }
   }
 
-  // Remove from coupon
   removeFromCoupon(index) {
     const match = this.myCoupon[index];
     this.myCoupon.splice(index, 1);
-    localStorage.setItem(STORAGE_KEYS.USER_COUPON, JSON.stringify(this.myCoupon));
     
-    // Update button in live matches
+    const key = typeof STORAGE_KEYS !== 'undefined' ? STORAGE_KEYS.USER_COUPON : 'ta_user_coupon';
+    localStorage.setItem(key, JSON.stringify(this.myCoupon));
+    
     this.updateCouponButton(match.fixtureId, false);
     this.updateMyCouponUI();
   }
 
-  // Clear my coupon
   clearMyCoupon() {
-    // Update all buttons
     this.myCoupon.forEach(c => {
       this.updateCouponButton(c.fixtureId, false);
     });
     
     this.myCoupon = [];
-    localStorage.removeItem(STORAGE_KEYS.USER_COUPON);
+    const key = typeof STORAGE_KEYS !== 'undefined' ? STORAGE_KEYS.USER_COUPON : 'ta_user_coupon';
+    localStorage.removeItem(key);
     this.updateMyCouponUI();
   }
 
-  // Update coupon win calculation
   updateCouponWin() {
     this.updateMyCouponUI();
   }
 
-  // Filter live matches
   filterLive(status) {
-    // Update active button
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.classList.remove('active');
       if (btn.textContent.includes(status) || (status === 'all' && btn.textContent === 'Tümü')) {
@@ -400,7 +354,6 @@ class App {
       }
     });
 
-    // Filter matches
     if (status === 'all') {
       this.renderLiveMatches(this.liveMatches);
     } else {
@@ -409,20 +362,16 @@ class App {
     }
   }
 
-  // Setup navigation
   setupNavigation() {
     window.showSection = (section) => {
-      // Hide all sections
       ['live', 'ai', 'coupon', 'my-coupon', 'successful', 'premium'].forEach(s => {
         const el = document.getElementById(`sec-${s}`);
         if (el) el.classList.add('hidden');
       });
 
-      // Show selected section
       const selectedEl = document.getElementById(`sec-${section}`);
       if (selectedEl) selectedEl.classList.remove('hidden');
 
-      // Update nav active state
       document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
         if (item.getAttribute('onclick')?.includes(section)) {
@@ -430,7 +379,6 @@ class App {
         }
       });
 
-      // Update title
       const titles = {
         live: 'Canlı Maçlar',
         ai: 'YZ Tahmin Motoru',
@@ -442,14 +390,12 @@ class App {
       const titleEl = document.getElementById('sectionTitle');
       if (titleEl) titleEl.textContent = titles[section] || '';
 
-      // Render section content
       if (section === 'my-coupon') {
         this.updateMyCouponUI();
       }
     };
   }
 
-  // Start clock
   startClock() {
     const clockEl = document.getElementById('clock');
     if (!clockEl) return;
@@ -467,12 +413,10 @@ class App {
   }
 }
 
-// Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
 });
 
-// Global functions for HTML onclick
 function handleLogin(e) {
   e.preventDefault();
   window.app.handleLogin();
