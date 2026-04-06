@@ -113,7 +113,7 @@ class AuthService {
 
   requireAuth() {
     if (!this.isLoggedIn()) {
-      window.location.href = 'index.html';
+      window.location.href = '/';
       return false;
     }
     return true;
