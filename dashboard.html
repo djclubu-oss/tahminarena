@@ -1,3 +1,4 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
 diff --git a/dashboard.html b/dashboard.html
 index 998f9b700d666035d0c7e55fe205d82d27c6d8c3..61c8f84d6c32181a195da4f8c330ac2c9352bdb0 100644
 --- a/dashboard.html
@@ -824,3 +825,6 @@ index 998f9b700d666035d0c7e55fe205d82d27c6d8c3..61c8f84d6c32181a195da4f8c330ac2c
 +  <script src="js/charts.js"></script>
 +</body>
 +</html>
+ 
+EOF
+)
