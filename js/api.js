@@ -1,5 +1,5 @@
-// ===== Main Application v2 =====
-class App {
+// ===== API Functions =====
+
 class ApiService {
   constructor() {
     this.baseUrl = 'https://v3.football.api-sports.io';
@@ -10,28 +10,38 @@ class ApiService {
     this.requestCount = 0;
   }
 
-  // TÜM canlı maçları getir (lig filtresiz)
-  async getAllLiveMatches() {
+  async getLiveMatches() {
     try {
-      console.log('Fetching ALL live matches...');
+      console.log('Fetching live matches...');
       
       const response = await fetch(`${this.baseUrl}/fixtures?live=all`, {
         method: 'GET',
         headers: this.headers
       });
 
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
       const data = await response.json();
-      console.log('All live matches:', data.response?.length || 0);
+      console.log('Matches found:', data.response?.length || 0);
       
       this.requestCount++;
+      
+      // If no live matches, get today's matches
+      if (!data.response || data.response.length === 0) {
+        return this.getTodayMatches();
+      }
+      
       return data;
     } catch (error) {
-      console.error('Live fetch error:', error);
-      return { response: [] };
+      console.error('API Error:', error);
+      return this.getTodayMatches();
     }
   }
 
-  // Bugünkü maçları getir
   async getTodayMatches() {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -51,31 +61,6 @@ class ApiService {
       console.error('Today fetch error:', error);
       return { response: [] };
     }
-  }
-
-  // Ana fonksiyon: Önce canlı, yoksa bugünkü
-  async getMatches() {
-    // 1. Canlı maçları dene
-    const liveData = await this.getAllLiveMatches();
-    
-    if (liveData.response && liveData.response.length > 0) {
-      console.log('Returning live matches');
-      return { 
-        ...liveData, 
-        isLive: true,
-        count: liveData.response.length 
-      };
-    }
-    
-    // 2. Canlı yoksa bugünkü maçları getir
-    console.log('No live matches, fetching today...');
-    const todayData = await this.getTodayMatches();
-    
-    return { 
-      ...todayData, 
-      isLive: false,
-      count: todayData.response?.length || 0 
-    };
   }
 
   getRequestCount() {
