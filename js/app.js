@@ -62,7 +62,7 @@ class App {
     const result = authService.login(email, password);
     
     if (result.success) {
-      window.location.href = 'dashboard.html';
+      window.location.href = '/dashboard.html';
     } else {
       if (errorEl) errorEl.textContent = result.error;
     }
@@ -86,7 +86,7 @@ class App {
     if (result.success) {
       if (successEl) successEl.textContent = 'Kayıt başarılı! Yönlendiriliyorsunuz...';
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = '/dashboard.html';
       }, 1500);
     } else {
       if (errorEl) errorEl.textContent = result.error;
@@ -97,7 +97,7 @@ class App {
     try {
       const container = document.getElementById('liveMatches');
       if (container) {
-        container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Tüm liglerden canlı maçlar yükleniyor...</p></div>';
+        container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Seçili liglerden canlı maçlar yükleniyor...</p></div>';
       }
 
       const data = await apiService.getLiveMatchesWithOdds();
@@ -112,12 +112,12 @@ class App {
 
       if (this.liveMatches.length === 0) {
         if (container) {
-          container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Şu an canlı maç yok.</p><small>Tüm dünya liglerinden maçlar takip ediliyor.</small></div>';
+          container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Şu an seçili liglerde canlı maç yok.</p></div>';
         }
         return;
       }
 
-      this.renderLiveMatches(this.liveMatches);
+      this.renderLiveMatchesByCategory(this.liveMatches);
 
     } catch (error) {
       console.error('Load live matches error:', error);
@@ -128,86 +128,130 @@ class App {
     }
   }
 
-  renderLiveMatches(matches) {
+  // Render matches grouped by category
+  renderLiveMatchesByCategory(matches) {
     const container = document.getElementById('liveMatches');
     if (!container) return;
 
-    container.innerHTML = matches.map(match => {
-      const isLive = ['1H', '2H', 'HT', 'ET'].includes(match.fixture?.status?.short);
-      const status = match.fixture?.status;
-      const league = match.league;
-      const odds = match.odds;
-      const isInCoupon = this.myCoupon.some(c => c.fixtureId === match.fixture.id);
+    // Group by category
+    const grouped = {};
+    matches.forEach(match => {
+      const cat = match.category || 'Diğer';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(match);
+    });
+
+    // Category order
+    const categoryOrder = ['Avrupa', 'Türkiye', 'Güney Amerika', 'Asya', 'Kuzey Amerika', 'Afrika', 'UEFA', 'Diğer'];
+
+    container.innerHTML = categoryOrder.map(category => {
+      const catMatches = grouped[category];
+      if (!catMatches || catMatches.length === 0) return '';
 
       return `
-        <div class="match-card ${isLive ? 'live' : ''}" data-fixture="${match.fixture.id}">
-          <div class="match-header">
-            <span class="league">
-              <img src="${league.logo}" alt="" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" onerror="this.style.display='none'">
-              ${league.name}
-            </span>
-            <span class="match-status ${isLive ? 'live' : ''}">
-              ${isLive ? '<span class="live-indicator-dot"></span>' : ''}
-              ${status.short === 'HT' ? 'Devre Arası' : status.elapsed + "'"}
-            </span>
+        <div class="category-section">
+          <div class="category-header">
+            <span class="category-flag">${this.getCategoryFlag(category)}</span>
+            <span class="category-name">${category}</span>
+            <span class="category-count">${catMatches.length} maç</span>
           </div>
-          
-          <div class="match-teams">
-            <div class="team home">
-              <img src="${match.teams.home.logo}" alt="" onerror="this.style.display='none'">
-              <span>${match.teams.home.name}</span>
-            </div>
-            
-            <div class="score ${match.goals.home !== null ? 'score-update' : ''}">
-              <span class="home-goals">${match.goals.home ?? '-'}</span>
-              <span class="separator">-</span>
-              <span class="away-goals">${match.goals.away ?? '-'}</span>
-            </div>
-            
-            <div class="team away">
-              <span>${match.teams.away.name}</span>
-              <img src="${match.teams.away.logo}" alt="" onerror="this.style.display='none'">
-            </div>
+          <div class="category-matches">
+            ${catMatches.map(match => this.renderMatchCard(match)).join('')}
           </div>
-          
-          ${odds ? `
-            <div class="live-odds">
-              <div class="odd-box">
-                <span class="label">1</span>
-                <span class="value">${odds.matchWinner?.home || '-'}</span>
-              </div>
-              <div class="odd-box">
-                <span class="label">X</span>
-                <span class="value">${odds.matchWinner?.draw || '-'}</span>
-              </div>
-              <div class="odd-box">
-                <span class="label">2</span>
-                <span class="value">${odds.matchWinner?.away || '-'}</span>
-              </div>
-              <div class="odd-box">
-                <span class="label">Üst 2.5</span>
-                <span class="value">${odds.overUnder?.over || '-'}</span>
-              </div>
-              <div class="odd-box">
-                <span class="label">Alt 2.5</span>
-                <span class="value">${odds.overUnder?.under || '-'}</span>
-              </div>
-              <div class="odd-box">
-                <span class="label">KG Var</span>
-                <span class="value">${odds.btts?.yes || '-'}</span>
-              </div>
-            </div>
-          ` : ''}
-          
-          <button class="add-to-coupon ${isInCoupon ? 'added' : ''}" 
-                  onclick="app.toggleCouponMatch(${match.fixture.id})"
-                  id="btn-${match.fixture.id}">
-            <i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>
-            ${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}
-          </button>
         </div>
       `;
     }).join('');
+  }
+
+  getCategoryFlag(category) {
+    const flags = {
+      'Avrupa': '🇪🇺',
+      'Türkiye': '🇹🇷',
+      'Güney Amerika': '🌎',
+      'Asya': '🇯🇵',
+      'Kuzey Amerika': '🇺🇸',
+      'Afrika': '🇪🇬',
+      'UEFA': '🏆',
+      'Diğer': '⚽'
+    };
+    return flags[category] || '⚽';
+  }
+
+  renderMatchCard(match) {
+    const isLive = ['1H', '2H', 'HT', 'ET'].includes(match.fixture?.status?.short);
+    const status = match.fixture?.status;
+    const league = match.league;
+    const odds = match.odds;
+    const isInCoupon = this.myCoupon.some(c => c.fixtureId === match.fixture.id);
+
+    return `
+      <div class="match-card ${isLive ? 'live' : ''}" data-fixture="${match.fixture.id}">
+        <div class="match-header">
+          <span class="league">
+            <img src="${league.logo}" alt="" onerror="this.style.display='none'">
+            ${league.name}
+          </span>
+          <span class="match-status ${isLive ? 'live' : ''}">
+            ${isLive ? '<span class="live-indicator-dot"></span>' : ''}
+            ${status.short === 'HT' ? 'Devre Arası' : status.elapsed + "'"}
+          </span>
+        </div>
+        
+        <div class="match-teams">
+          <div class="team home">
+            <img src="${match.teams.home.logo}" alt="" onerror="this.style.display='none'">
+            <span>${match.teams.home.name}</span>
+          </div>
+          
+          <div class="score ${match.goals.home !== null ? 'score-update' : ''}">
+            <span class="home-goals">${match.goals.home ?? '-'}</span>
+            <span class="separator">-</span>
+            <span class="away-goals">${match.goals.away ?? '-'}</span>
+          </div>
+          
+          <div class="team away">
+            <span>${match.teams.away.name}</span>
+            <img src="${match.teams.away.logo}" alt="" onerror="this.style.display='none'">
+          </div>
+        </div>
+        
+        ${odds ? `
+          <div class="live-odds">
+            <div class="odd-box">
+              <span class="label">1</span>
+              <span class="value">${odds.matchWinner?.home || '-'}</span>
+            </div>
+            <div class="odd-box">
+              <span class="label">X</span>
+              <span class="value">${odds.matchWinner?.draw || '-'}</span>
+            </div>
+            <div class="odd-box">
+              <span class="label">2</span>
+              <span class="value">${odds.matchWinner?.away || '-'}</span>
+            </div>
+            <div class="odd-box">
+              <span class="label">Üst 2.5</span>
+              <span class="value">${odds.overUnder?.over || '-'}</span>
+            </div>
+            <div class="odd-box">
+              <span class="label">Alt 2.5</span>
+              <span class="value">${odds.overUnder?.under || '-'}</span>
+            </div>
+            <div class="odd-box">
+              <span class="label">KG Var</span>
+              <span class="value">${odds.btts?.yes || '-'}</span>
+            </div>
+          </div>
+        ` : ''}
+        
+        <button class="add-to-coupon ${isInCoupon ? 'added' : ''}" 
+                onclick="app.toggleCouponMatch(${match.fixture.id})"
+                id="btn-${match.fixture.id}">
+          <i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>
+          ${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}
+        </button>
+      </div>
+    `;
   }
 
   startLiveUpdates() {
@@ -232,7 +276,8 @@ class App {
         league: match.league.name,
         score: `${match.goals.home}-${match.goals.away}`,
         time: match.fixture.status.elapsed + "'",
-        odds: match.odds?.matchWinner?.home || '1.80'
+        odds: match.odds?.matchWinner?.home || '1.80',
+        category: match.category
       });
     }
 
@@ -313,6 +358,7 @@ class App {
             
             <div class="match-prediction">
               <span>Oran: @${match.odds}</span>
+              <span style="margin-left: 10px; color: var(--text-muted);">| ${match.category}</span>
             </div>
           </div>
         `).join('');
@@ -355,10 +401,10 @@ class App {
     });
 
     if (status === 'all') {
-      this.renderLiveMatches(this.liveMatches);
+      this.renderLiveMatchesByCategory(this.liveMatches);
     } else {
       const filtered = this.liveMatches.filter(m => m.fixture?.status?.short === status);
-      this.renderLiveMatches(filtered);
+      this.renderLiveMatchesByCategory(filtered);
     }
   }
 
@@ -429,7 +475,7 @@ function handleRegister(e) {
 
 function logout() {
   authService.logout();
-  window.location.href = 'index.html';
+  window.location.href = '/';
 }
 
 function togglePass(id, el) {
