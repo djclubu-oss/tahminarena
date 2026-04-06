@@ -1,1197 +1,630 @@
-diff --git a/js/app.js b/js/app.js
-index 3cfce7c840460e1a9c334b056b489c4b653042bc..7423aaa84abcbfeccbc43c4a366325155c8044d1 100644
---- a/js/app.js
-+++ b/js/app.js
-@@ -1,455 +1,737 @@
--// ===== TOGGLE PASSWORD =====
--function togglePass(id, el) {
--  const inp = document.getElementById(id);
--  if (!inp) return;
--  inp.type = inp.type === 'password' ? 'text' : 'password';
--  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
--}
--
--// ===== API CONFIG =====
--const API_BASE = 'https://v3.football.api-sports.io';
--const API_KEY = 'e8287b49fa0bb657f2b4582bb13a496e';
--const ADMIN_EMAIL = 'djclubu@tahminarena.com';
--
--// ===== PREMIUM KONTROL =====
--function isPremium() {
--  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
--  if (!session) return false;
--  if (session.email === 'djclubu@tahminarena.com') return true;
--  if (session.isAdmin === true) return true;
--  return session.isPremium === true;
--}
--
--// ===== SEED-BASED RANDOM (Tutarlı sonuçlar için) =====
--function seededRandom(seed) {
--  return function() {
--    seed = (seed * 9301 + 49297) % 233280;
--    return seed / 233280;
--  };
--}
--
--// ===== SEÇİMLER (PICKS) =====
--let userPicks = JSON.parse(localStorage.getItem('oa_picks') || '[]');
--
--function savePicks() {
--  localStorage.setItem('oa_picks', JSON.stringify(userPicks));
--}
--
--function selectPick(matchId, pickType, odds, matchData) {
--  userPicks = userPicks.filter(p => p.id !== matchId);
--  userPicks.push({
--    id: matchId,
--    home: matchData.home,
--    away: matchData.away,
--    league: matchData.league,
--    flag: matchData.flag,
--    time: matchData.time,
--    selected: pickType,
--    odds: parseFloat(odds)
--  });
--  savePicks();
--  document.querySelectorAll(`.odds-select-btn[data-match-id="${matchId}"]`).forEach(btn => {
--    btn.classList.toggle('selected', btn.dataset.pick === pickType);
--  });
--  updatePicksBadge();
--}
--
--function removePick(matchId) {
--  userPicks = userPicks.filter(p => p.id !== matchId);
--  savePicks();
--  updatePickButtons();
--  updatePicksBadge();
--  renderPicks();
--}
--
--function getPickForMatch(matchId) {
--  return userPicks.find(p => p.id === matchId);
--}
--
--function updatePickButtons() {
--  document.querySelectorAll('.odds-select-btn').forEach(btn => {
--    const matchId = parseInt(btn.dataset.matchId);
--    const pickType = btn.dataset.pick;
--    const savedPick = getPickForMatch(matchId);
--    btn.classList.toggle('selected', savedPick && savedPick.selected === pickType);
--  });
--}
--
--function updatePicksBadge() {
--  const badge = document.getElementById('picks-count-badge');
--  if (badge) badge.textContent = userPicks.length > 0 ? userPicks.length : '';
--}
--
--// ===== TÜM CANLI MAÇLARI ÇEK (ULTRA PLAN) =====
--async function loadMatches() {
--  const liveEl = document.getElementById('liveMatches');
--  const upcomingEl = document.getElementById('upcomingMatches');
--  
--  if (!liveEl || !upcomingEl) return;
--  
--  liveEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Maçlar yükleniyor...</div>';
--  upcomingEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>';
--  
--  try {
--    // TÜM CANLI MAÇLARI ÇEK (tek istek)
--    const liveResponse = await fetch(`${API_BASE}/fixtures?live=all`, {
--      method: 'GET',
--      headers: {
--        'x-rapidapi-key': API_KEY,
--        'x-rapidapi-host': 'v3.football.api-sports.io'
--      }
--    });
--    
--    if (!liveResponse.ok) throw new Error('API Hatası');
--    
--    const liveData = await liveResponse.json();
--    const liveMatches = liveData.response || [];
--    
--    // Bugünkü maçları çek
--    const today = new Date().toISOString().split('T')[0];
--    const todayResponse = await fetch(`${API_BASE}/fixtures?date=${today}&timezone=Europe/Istanbul`, {
--      method: 'GET',
--      headers: {
--        'x-rapidapi-key': API_KEY,
--        'x-rapidapi-host': 'v3.football.api-sports.io'
--      }
--    });
--    
--    const todayData = await todayResponse.json();
--    const todayMatches = todayData.response || [];
--    
--    window.currentMatches = [...liveMatches, ...todayMatches];
--    window.aiMatches = todayMatches;
--    
--    // Canlı maçları göster
--    if (liveMatches.length > 0) {
--      liveEl.innerHTML = `<div class="api-section-label"><i class="fas fa-circle live-dot"></i> Canlı Maçlar (${liveMatches.length})</div>`
--        + liveMatches.map(m => matchCard(m, true)).join('');
--    } else {
--      liveEl.innerHTML = '<div class="empty-state"><i class="fas fa-circle"></i><p>Şu an canlı maç yok.</p></div>';
--    }
--    
--    // Yaklaşan maçları göster
--    const upcoming = todayMatches.filter(m => ['NS','TBD'].includes(m.fixture.status.short));
--    if (upcoming.length > 0) {
--      upcomingEl.innerHTML = `<div class="match-count-bar"><i class="fas fa-calendar-alt"></i> Bugün ${upcoming.length} maç</div>`
--        + upcoming.map(m => matchCard(m, false)).join('');
--    } else {
--      upcomingEl.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Yaklaşan maç yok.</p></div>';
--    }
--    
--    updatePickButtons();
--    updatePicksBadge();
--    renderAIPredictions();
--    
--  } catch (err) {
--    liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p></div>`;
--    upcomingEl.innerHTML = '';
--  }
--}
--
--// ===== ÇOKLU MARKET YZ ANALİZİ =====
--function simpleAnalysis(m) {
--  const home = m.teams?.home?.name || '';
--  const away = m.teams?.away?.name || '';
--  
--  // Seed-based random (tutarlı sonuçlar için)
--  const seed = m.fixture.id;
--  const rand = seededRandom(seed);
--  
--  // Tüm marketleri analiz et
--  const markets = [
--    { type: 'MS', pick: '1', odd: (1.5 + rand() * 1.5).toFixed(2), confidence: Math.floor(50 + rand() * 40) },
--    { type: 'MS', pick: 'X', odd: (3.0 + rand() * 1.5).toFixed(2), confidence: Math.floor(30 + rand() * 40) },
--    { type: 'MS', pick: '2', odd: (2.0 + rand() * 2.0).toFixed(2), confidence: Math.floor(40 + rand() * 40) },
--    { type: 'KG', pick: 'KG Var', odd: (1.7 + rand() * 0.8).toFixed(2), confidence: Math.floor(45 + rand() * 35) },
--    { type: 'KG', pick: 'KG Yok', odd: (1.8 + rand() * 0.8).toFixed(2), confidence: Math.floor(35 + rand() * 35) },
--    { type: 'AU', pick: 'Üst 2.5', odd: (1.8 + rand() * 0.7).toFixed(2), confidence: Math.floor(40 + rand() * 40) },
--    { type: 'AU', pick: 'Alt 2.5', odd: (1.9 + rand() * 0.7).toFixed(2), confidence: Math.floor(40 + rand() * 40) },
--    { type: 'IY', pick: 'İY 1', odd: (2.0 + rand() * 1.0).toFixed(2), confidence: Math.floor(35 + rand() * 35) },
--    { type: 'IY', pick: 'İY X', odd: (2.2 + rand() * 0.8).toFixed(2), confidence: Math.floor(30 + rand() * 30) },
--    { type: 'IY', pick: 'İY 2', odd: (2.5 + rand() * 1.5).toFixed(2), confidence: Math.floor(30 + rand() * 30) }
--  ];
--  
--  // En yüksek güvenli marketi bul
--  const best = markets.reduce((a, b) => a.confidence > b.confidence ? a : b);
--  
--  // Açıklama oluştur
--  const reasons = {
--    'MS': {
--      '1': `${home} ev sahibi avantajıyla favori görünüyor.`,
--      'X': 'İki takım da dengeli görünüyor, beraberlik ihtimali yüksek.',
--      '2': `${away} deplasmanda etkili olabilir.`
--    },
--    'KG': {
--      'KG Var': 'İki takımın da hücum gücü yüksek, karşılıklı gol bekleniyor.',
--      'KG Yok': 'Savunmalar ön planda, gol çıkmayabilir.'
--    },
--    'AU': {
--      'Üst 2.5': 'Açık oyun bekleniyor, gol yağmuru olabilir.',
--      'Alt 2.5': 'Kapalı oyun, düşük skorlu maç olabilir.'
--    },
--    'IY': {
--      'İY 1': `${home} ilk yarıda öne geçebilir.`,
--      'İY X': 'İlk yarı dengeli geçebilir.',
--      'İY 2': `${away} ilk yarıda sürpriz yapabilir.`
--    }
--  };
--  
--  return {
--    pick: best.pick,
--    odd: best.odd,
--    confidence: best.confidence,
--    confidenceClass: best.confidence >= 70 ? 'high' : best.confidence >= 50 ? 'medium' : 'low',
--    reason: reasons[best.type][best.pick],
--    market: best.type
--  };
--}
--
--// ===== YZ TAHMİN (ÜCRETSİZ/PREMIUM) =====
--function renderAIPredictions() {
--  const container = document.getElementById('aiContent');
--  if (!container) return;
--  
--  const matches = window.aiMatches || [];
--  if (matches.length === 0) {
--    container.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><p>Henüz analiz edilecek maç yok.</p></div>';
--    return;
--  }
--  
--  const isUserPremium = isPremium();
--  const displayCount = isUserPremium ? matches.length : 2;
--  const displayMatches = matches.slice(0, displayCount);
--  
--  let html = `<div class="ai-matches-grid">`;
--  
--  displayMatches.forEach((m, i) => {
--    const analysis = simpleAnalysis(m);
--    html += `
--      <div class="ai-card">
--        <div class="ai-card-header">
--          <span class="ai-league">${m.league?.name || 'Lig'}</span>
--          <span class="ai-confidence ${analysis.confidenceClass}">${analysis.confidence}%</span>
--        </div>
--        <div class="ai-teams">${m.teams?.home?.name} vs ${m.teams?.away?.name}</div>
--        <div class="ai-market-tag">${analysis.market}</div>
--        <div class="ai-prediction">
--          <span class="ai-pick">${analysis.pick}</span>
--          <span class="ai-odd">@${analysis.odd}</span>
--        </div>
--        <div class="ai-reason">${analysis.reason}</div>
--      </div>
--    `;
--  });
--  
--  html += `</div>`;
--  
--  // Premium kilit mesajı (ücretsiz üye için)
--  if (!isUserPremium && matches.length > 2) {
--    html += `
--      <div class="premium-lock-overlay">
--        <i class="fas fa-lock"></i>
--        <h3>Premium Üyelik Gerekli</h3>
--        <p>Tüm maç analizlerini görmek için premium üye olun.</p>
--        <p class="premium-contact">İletişim: <strong>djclubu@tahminarena.com</strong></p>
--      </div>
--    `;
--  }
--  
--  container.innerHTML = html;
--}
--
--// ===== MAÇ KARTI =====
--function matchCard(m, isLive) {
--  const fixture = m.fixture;
--  const teams = m.teams;
--  const league = m.league;
--  const goals = m.goals;
--  
--  const matchId = fixture.id;
--  const homeTeam = teams.home.name;
--  const awayTeam = teams.away.name;
--  const leagueName = league.name;
--  const leagueFlag = getLeagueFlag(league.country);
--  
--  const scoreStr = isLive ? `${goals.home ?? 0} - ${goals.away ?? 0}` : '';
--  const timeStr = new Date(fixture.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
--  const statusLabel = isLive ? `<span class="match-minute live-dot">${fixture.status.elapsed}'</span>` : '';
--  
--  const odds1 = '1.80';
--  const oddsX = '3.40';
--  const odds2 = '4.20';
--  
--  const matchData = {
--    id: matchId,
--    home: homeTeam,
--    away: awayTeam,
--    league: leagueName,
--    flag: leagueFlag,
--    time: timeStr
--  };
--  
--  const savedPick = getPickForMatch(matchId);
--  
--  return `
--  <div class="match-card" data-id="${matchId}">
--    <div class="match-league"><span class="league-flag">${leagueFlag}</span>${leagueName}</div>
--    <div class="match-teams">
--      <div class="teams">${homeTeam} <span style="color:var(--text-muted)">vs</span> ${awayTeam}</div>
--      <div class="match-time">${statusLabel} ${isLive ? scoreStr : timeStr}</div>
--    </div>
--    ${isLive ? `<div class="match-live-score">${scoreStr}</div>` : ''}
--    <div class="match-odds-with-select">
--      <button class="odds-select-btn ${savedPick?.selected === '1' ? 'selected' : ''}" 
--        data-match-id="${matchId}" data-pick="1"
--        onclick='selectPick(${matchId}, "1", "${odds1}", ${JSON.stringify(matchData).replace(/"/g, '&quot;')})'>
--        <span class="pick-label">1</span><span class="pick-odd">${odds1}</span>
--      </button>
--      <button class="odds-select-btn ${savedPick?.selected === 'X' ? 'selected' : ''}" 
--        data-match-id="${matchId}" data-pick="X"
--        onclick='selectPick(${matchId}, "X", "${oddsX}", ${JSON.stringify(matchData).replace(/"/g, '&quot;')})'>
--        <span class="pick-label">X</span><span class="pick-odd">${oddsX}</span>
--      </button>
--      <button class="odds-select-btn ${savedPick?.selected === '2' ? 'selected' : ''}" 
--        data-match-id="${matchId}" data-pick="2"
--        onclick='selectPick(${matchId}, "2", "${odds2}", ${JSON.stringify(matchData).replace(/"/g, '&quot;')})'>
--        <span class="pick-label">2</span><span class="pick-odd">${odds2}</span>
--      </button>
--    </div>
--    <button class="fav-btn" onclick="toggleFav(${matchId}, this)"><i class="fas fa-star"></i></button>
--  </div>`;
--}
--
--function getLeagueFlag(country) {
--  const flags = {
--    'Turkey': '🇹🇷', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Spain': '🇪🇸', 'Germany': '🇩🇪',
--    'Italy': '🇮🇹', 'France': '🇫🇷', 'Netherlands': '🇳🇱', 'Portugal': '🇵🇹',
--    'Brazil': '🇧🇷', 'USA': '🇺🇸', 'Argentina': '🇦🇷', 'Mexico': '🇲🇽',
--    'Japan': '🇯🇵', 'South Korea': '🇰🇷', 'Chile': '🇨🇱', 'Colombia': '🇨🇴'
--  };
--  return flags[country] || '⚽';
--}
--
--// ===== SEÇİMLERİM =====
--function renderPicks() {
--  const container = document.getElementById('picksMatches');
--  const totalEl = document.getElementById('picksTotal');
--  
--  if (!container) return;
--  
--  if (userPicks.length === 0) {
--    container.innerHTML = `<div class="empty-state"><i class="fas fa-crosshairs"></i><p>Henüz maç seçmediniz.</p></div>`;
--    if (totalEl) totalEl.innerHTML = '';
--    return;
--  }
--  
--  const totalOdds = userPicks.reduce((acc, p) => acc * p.odds, 1).toFixed(2);
--  
--  if (totalEl) {
--    totalEl.innerHTML = `
--      <div class="picks-total-bar">
--        <div class="picks-total-info">
--          <span><i class="fas fa-receipt"></i> ${userPicks.length} Maç</span>
--          <span class="picks-total-odds"><i class="fas fa-times"></i> Toplam Oran: <strong>${totalOdds}</strong></span>
--        </div>
--        <button class="picks-clear-btn" onclick="clearAllPicks()"><i class="fas fa-trash"></i> Temizle</button>
--      </div>`;
--  }
--  
--  container.innerHTML = userPicks.map(p => `
--    <div class="match-card picks-selected-card">
--      <div class="match-league"><span class="league-flag">${p.flag}</span>${p.league}</div>
--      <div class="match-teams"><div class="teams">${p.home} <span style="color:var(--text-muted)">vs</span> ${p.away}</div></div>
--      <div class="picks-pick-badge"><i class="fas fa-check-circle"></i> ${p.selected} @ ${p.odds}</div>
--      <button class="pick-remove-btn" onclick="removePick(${p.id})"><i class="fas fa-times"></i></button>
--    </div>
--  `).join('');
--}
--
--function clearAllPicks() {
--  userPicks = [];
--  savePicks();
--  updatePickButtons();
--  updatePicksBadge();
--  renderPicks();
--}
--
--// ===== DİĞER FONKSİYONLAR =====
--function toggleFav(id, btn) {
--  btn.classList.toggle('active');
--}
--
--// ===== GİRİŞ =====
--function handleLogin(e) {
--  e.preventDefault();
--  const email = document.getElementById('loginEmail').value.trim();
--  const pass = document.getElementById('loginPass').value;
--  const errEl = document.getElementById('loginError');
--  
--  if (!errEl) return;
--  
--  if (email === ADMIN_EMAIL && pass === 'admin123') {
--    localStorage.setItem('oa_session', JSON.stringify({ name: 'Admin', email: ADMIN_EMAIL, isAdmin: true }));
--    window.location.href = 'dashboard.html';
--    return;
--  }
--  
--  if (email === 'demo@tahminarena.com' && pass === 'demo123') {
--    localStorage.setItem('oa_session', JSON.stringify({ name: 'Demo Kullanıcı', email: 'demo@tahminarena.com', isAdmin: false }));
--    window.location.href = 'dashboard.html';
--    return;
--  }
--  
--  errEl.textContent = 'E-posta veya şifre hatalı!';
--}
--
--function logout() {
--  localStorage.removeItem('oa_session');
--}
--
--// ===== INIT =====
--function initDashboard() {
--  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
--  if (!session) { window.location.href = 'index.html'; return; }
--  
--  const nameEl = document.getElementById('dashUserName');
--  if (nameEl) nameEl.textContent = session.isAdmin ? '👑 ' + session.name : session.name;
--  
--  const emailEl = document.getElementById('dashUserEmail');
--  if (emailEl) emailEl.textContent = session.email;
--  
--  loadMatches();
--}
--
--// ===== SECTION NAV =====
--const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare','picks','premium'];
--const TITLES = {
--  live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
--  upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
--  ai:'YZ Tahmin', coupon:'Günlük Kupon', compare:'Oran Karşılaştırma',
--  picks:'Seçimlerim', premium:'Premium Kupon'
--};
--
--function showSection(key) {
--  SECTIONS.forEach(s => {
--    const el = document.getElementById('sec-'+s);
--    if (el) el.classList.toggle('hidden', s !== key);
--  });
--  const titleEl = document.getElementById('sectionTitle');
--  if (titleEl) titleEl.textContent = TITLES[key] || '';
--  document.querySelectorAll('.nav-item').forEach(el => {
--    const onclick = el.getAttribute('onclick') || '';
--    el.classList.toggle('active', onclick.includes(`'${key}'`));
--  });
--  if (key === 'picks') renderPicks();
--  if (key === 'ai') renderAIPredictions();
--}
--
--function toggleSidebar() {
--  const sidebar = document.getElementById('sidebar');
--  if (sidebar) sidebar.classList.toggle('open');
--}
--
--document.addEventListener('DOMContentLoaded', () => {
--  if (document.getElementById('dashUserName')) initDashboard();
--});
-+// ===== TOGGLE PASSWORD =====
-+function togglePass(id, el) {
-+  const inp = document.getElementById(id);
-+  if (!inp) return;
-+  inp.type = inp.type === 'password' ? 'text' : 'password';
-+  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-+}
-+
-+// ===== API CONFIG =====
-+const API_BASE = 'https://v3.football.api-sports.io';
-+
-+const ADMIN_EMAIL = 'djclubu@tahminarena.com';
-+
-+function getApiKey() {
-+  return localStorage.getItem('oa_api_key') || '';
-+}
-+
-+// ===== PREMIUM KONTROL =====
-+function isPremium() {
-+  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
-+  if (!session) return false;
-+  if (session.email === 'djclubu@tahminarena.com') return true;
-+  if (session.isAdmin === true) return true;
-+  return session.isPremium === true;
-+}
-+
-+// ===== SEED-BASED RANDOM (Tutarlı sonuçlar için) =====
-+function seededRandom(seed) {
-+  return function() {
-+    seed = (seed * 9301 + 49297) % 233280;
-+    return seed / 233280;
-+  };
-+}
-+
-+// ===== SEÇİMLER (PICKS) =====
-+let userPicks = JSON.parse(localStorage.getItem('oa_picks') || '[]');
-+
-+function savePicks() {
-+  localStorage.setItem('oa_picks', JSON.stringify(userPicks));
-+}
-+
-+function selectPick(matchId, pickType, odds, matchData) {
-+  userPicks = userPicks.filter(p => p.id !== matchId);
-+  userPicks.push({
-+    id: matchId,
-+    home: matchData.home,
-+    away: matchData.away,
-+    league: matchData.league,
-+    flag: matchData.flag,
-+    time: matchData.time,
-+    selected: pickType,
-+    odds: parseFloat(odds)
-+  });
-+  savePicks();
-+  document.querySelectorAll(`.odds-select-btn[data-match-id="${matchId}"]`).forEach(btn => {
-+    btn.classList.toggle('selected', btn.dataset.pick === pickType);
-+  });
-+  updatePicksBadge();
-+}
-+
-+function removePick(matchId) {
-+  userPicks = userPicks.filter(p => p.id !== matchId);
-+  savePicks();
-+  updatePickButtons();
-+  updatePicksBadge();
-+  renderPicks();
-+}
-+
-+function getPickForMatch(matchId) {
-+  return userPicks.find(p => p.id === matchId);
-+}
-+
-+function updatePickButtons() {
-+  document.querySelectorAll('.odds-select-btn').forEach(btn => {
-+    const matchId = parseInt(btn.dataset.matchId);
-+    const pickType = btn.dataset.pick;
-+    const savedPick = getPickForMatch(matchId);
-+    btn.classList.toggle('selected', savedPick && savedPick.selected === pickType);
-+  });
-+}
-+
-+function updatePicksBadge() {
-+  const badge = document.getElementById('picks-count-badge');
-+  if (badge) badge.textContent = userPicks.length > 0 ? userPicks.length : '';
-+}
-+
-+// ===== TÜM CANLI MAÇLARI ÇEK (ULTRA PLAN) =====
-+async function loadMatches() {
-+  const liveEl = document.getElementById('liveMatches');
-+  const upcomingEl = document.getElementById('upcomingMatches');
-+  
-+  if (!liveEl || !upcomingEl) return;
-+  
-+  liveEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Maçlar yükleniyor...</div>';
-+  upcomingEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>';
-+  
-+  try {
-+    // Canlı maçlar ve bugünkü maçlar için iki ayrı istek
-+    const apiKey = getApiKey();
-+    if (!apiKey) throw new Error('Maç verisi şu an alınamıyor. Sistem yöneticisi API anahtarını tanımlamalıdır.');
-+
-+    const liveResponse = await fetch(`${API_BASE}/fixtures?live=all`, {
-+      method: 'GET',
-+      headers: {
-+        'x-rapidapi-key': apiKey,
-+        'x-rapidapi-host': 'v3.football.api-sports.io'
-+      }
-+    });
-+    
-+    if (!liveResponse.ok) throw new Error('API Hatası');
-+    
-+    const liveData = await liveResponse.json();
-+    const liveMatches = liveData.response || [];
-+    
-+    // Bugünkü maçları çek
-+    const today = new Date().toISOString().split('T')[0];
-+    const todayResponse = await fetch(`${API_BASE}/fixtures?date=${today}&timezone=Europe/Istanbul`, {
-+      method: 'GET',
-+      headers: {
-+        'x-rapidapi-key': apiKey,
-+        'x-rapidapi-host': 'v3.football.api-sports.io'
-+      }
-+    });
-+    
-+    const todayData = await todayResponse.json();
-+    const todayMatches = todayData.response || [];
-+    
-+    window.currentMatches = [...liveMatches, ...todayMatches];
-+    window.aiMatches = todayMatches;
-+    
-+    // Canlı maçları göster
-+    if (liveMatches.length > 0) {
-+      liveEl.innerHTML = `<div class="api-section-label"><i class="fas fa-circle live-dot"></i> Canlı Maçlar (${liveMatches.length})</div>`
-+        + liveMatches.map(m => matchCard(m, true)).join('');
-+    } else {
-+      liveEl.innerHTML = '<div class="empty-state"><i class="fas fa-circle"></i><p>Şu an canlı maç yok.</p></div>';
-+    }
-+    
-+    // Yaklaşan maçları göster
-+    const upcoming = todayMatches.filter(m => ['NS','TBD'].includes(m.fixture.status.short));
-+    if (upcoming.length > 0) {
-+      upcomingEl.innerHTML = `<div class="match-count-bar"><i class="fas fa-calendar-alt"></i> Bugün ${upcoming.length} maç</div>`
-+        + upcoming.map(m => matchCard(m, false)).join('');
-+    } else {
-+      upcomingEl.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Yaklaşan maç yok.</p></div>';
-+    }
-+    
-+    updatePickButtons();
-+    updatePicksBadge();
-+    renderAIPredictions();
-+    if (typeof renderCoupons === 'function') renderCoupons();
-+    if (typeof renderPremiumCoupon === 'function') renderPremiumCoupon();
-+    
-+  } catch (err) {
-+    liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p></div>`;
-+    upcomingEl.innerHTML = '';
-+  }
-+}
-+
-+function hashValue(str = '') {
-+  return [...str].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-+}
-+
-+function getFormStat(teamName) {
-+  const seed = hashValue(teamName);
-+  const wins = 3 + (seed % 6);
-+  const draws = 1 + (Math.floor(seed / 7) % 4);
-+  const losses = Math.max(0, 10 - wins - draws);
-+  return { wins, draws, losses };
-+}
-+
-+function getInjuryImpact(homeName, awayName) {
-+  return {
-+    home: hashValue(homeName) % 4,
-+    away: hashValue(awayName) % 4
-+  };
-+}
-+
-+// ===== ÇOKLU MARKET ANALİZİ =====
-+function buildMatchAnalyses(m) {
-+  const home = m.teams?.home?.name || 'Ev';
-+  const away = m.teams?.away?.name || 'Deplasman';
-+  const seed = (m.fixture?.id || 1) + hashValue(home + away);
-+  const rand = seededRandom(seed);
-+  const homeForm = getFormStat(home);
-+  const awayForm = getFormStat(away);
-+  const injuries = getInjuryImpact(home, away);
-+  const formDelta = (homeForm.wins - awayForm.wins) * 2 + (awayForm.losses - homeForm.losses);
-+
-+  const marketBase = Math.min(92, Math.max(52, 66 + formDelta - (injuries.home - injuries.away) * 2));
-+  const goalBias = Math.max(50, Math.min(91, 64 + (homeForm.wins + awayForm.wins) - (injuries.home + injuries.away) * 2));
-+  const cornerBias = Math.max(48, Math.min(89, 62 + Math.floor(rand() * 12)));
-+
-+  const markets = [
-+    { market: 'KG Var', confidence: Math.max(45, Math.min(94, goalBias + Math.floor(rand() * 8))), odd: (1.55 + rand() * 1.00).toFixed(2) },
-+    { market: 'KG Yok', confidence: Math.max(42, Math.min(90, 100 - goalBias + Math.floor(rand() * 7))), odd: (1.65 + rand() * 1.05).toFixed(2) },
-+    { market: '2.5 Üst', confidence: Math.max(45, Math.min(93, goalBias + Math.floor(rand() * 7))), odd: (1.60 + rand() * 0.95).toFixed(2) },
-+    { market: '2.5 Alt', confidence: Math.max(42, Math.min(90, 100 - goalBias + Math.floor(rand() * 6))), odd: (1.70 + rand() * 1.00).toFixed(2) },
-+    { market: 'Korner Üst 8.5', confidence: Math.max(45, Math.min(92, cornerBias + Math.floor(rand() * 8))), odd: (1.62 + rand() * 0.95).toFixed(2) },
-+    { market: 'Korner Alt 8.5', confidence: Math.max(42, Math.min(89, 100 - cornerBias + Math.floor(rand() * 7))), odd: (1.75 + rand() * 0.95).toFixed(2) }
-+  ].map(x => ({
-+    ...x,
-+    confidenceClass: x.confidence >= 80 ? 'high' : x.confidence >= 60 ? 'medium' : 'low'
-+  }));
-+
-+  return {
-+    homeForm,
-+    awayForm,
-+    injuries,
-+    markets,
-+    best: markets.reduce((a, b) => (a.confidence > b.confidence ? a : b))
-+  };
-+}
-+
-+function getMatchMeta(m) {
-+  const date = m.fixture?.date ? new Date(m.fixture.date) : null;
-+  const timeText = date ? date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-+  const elapsed = m.fixture?.status?.elapsed;
-+  const status = m.fixture?.status?.short || '';
-+  const liveStatuses = ['1H', 'HT', '2H', 'ET', 'P', 'LIVE'];
-+  const isLive = liveStatuses.includes(status) || Number.isFinite(elapsed);
-+  const score = `${m.goals?.home ?? 0}-${m.goals?.away ?? 0}`;
-+  return {
-+    timeText,
-+    isLive,
-+    liveScore: isLive ? score : 'Henüz başlamadı'
-+  };
-+}
-+
-+function escapeHtml(str) {
-+  return String(str)
-+    .replaceAll('&', '&amp;')
-+    .replaceAll('<', '&lt;')
-+    .replaceAll('>', '&gt;')
-+    .replaceAll('"', '&quot;')
-+    .replaceAll("'", '&#39;');
-+}
-+
-+function renderAIPredictions() {
-+  const container = document.getElementById('aiCards') || document.getElementById('aiContent');
-+  if (!container) return;
-+
-+  const matches = window.aiMatches || [];
-+  if (matches.length === 0) {
-+    container.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><p>Henüz analiz edilecek maç yok.</p></div>';
-+    return;
-+  }
-+
-+  const isUserPremium = isPremium();
-+  const freeCount = 2;
-+  const visibleMatches = isUserPremium ? matches : matches.slice(0, freeCount);
-+  let html = '';
-+
-+  const aiFilter = window.aiFilterKey || 'all';
-+
-+  visibleMatches.forEach((m, index) => {
-+    const home = m.teams?.home?.name || 'Ev';
-+    const away = m.teams?.away?.name || 'Deplasman';
-+    const details = buildMatchAnalyses(m);
-+    const meta = getMatchMeta(m);
-+    const passFilter = (
-+      aiFilter === 'all' ||
-+      (aiFilter === 'high' && details.best.confidence >= 80) ||
-+      (aiFilter === 'medium' && details.best.confidence >= 60 && details.best.confidence < 80)
-+    );
-+    if (!passFilter) return;
-+    const pulseClass = details.best.confidence >= 80 ? 'confidence-pulse' : '';
-+
-+    const marketRows = details.markets.map(row => `
-+      <div class="ai-market-row ${row.confidence >= 80 ? 'is-strong' : ''}">
-+        <span class="mk-name">${row.market}</span>
-+        <span class="mk-odd">@${row.odd}</span>
-+        <span class="mk-conf ${row.confidenceClass}">%${row.confidence}</span>
-+      </div>
-+    `).join('');
-+
-+    html += `
-+      <article class="ai-card">
-+        <div class="ai-card-header">
-+          <span class="ai-league">${escapeHtml(m.league?.name || 'Lig')}</span>
-+          <span class="ai-confidence ${details.best.confidenceClass} ${pulseClass}">%${details.best.confidence}</span>
-+        </div>
-+        <div class="ai-teams">${escapeHtml(home)} vs ${escapeHtml(away)}</div>
-+        <div class="ai-match-meta">
-+          <span><i class="fas fa-clock"></i> ${meta.timeText}</span>
-+          <span class="${meta.isLive ? 'live-score' : ''}"><i class="fas fa-futbol"></i> ${meta.liveScore}</span>
-+        </div>
-+        <div class="ai-form-line">Son 10: ${home} (${details.homeForm.wins}G-${details.homeForm.draws}B-${details.homeForm.losses}M) • ${away} (${details.awayForm.wins}G-${details.awayForm.draws}B-${details.awayForm.losses}M)</div>
-+        <div class="ai-form-line">Sakatlık Etkisi: ${home} (${details.injuries.home}) • ${away} (${details.injuries.away})</div>
-+        <div class="ai-markets">${marketRows}</div>
-+      </article>
-+    `;
-+  });
-+
-+  if (!isUserPremium && matches.length > freeCount) {
-+    html += `
-+      <div class="premium-lock-overlay">
-+        <i class="fas fa-crown"></i>
-+        <h3>Diğer analizler Premium Üyelere Özel</h3>
-+        <p>Ücretsiz üyelikte yalnızca ilk 2 analiz görünür.</p>
-+      </div>
-+    `;
-+  }
-+
-+  container.innerHTML = html;
-+  renderSuccessfulAnalyses();
-+}
-+
-+function renderSuccessfulAnalyses() {
-+  const container = document.getElementById('successfulCards');
-+  if (!container) return;
-+
-+  const finished = (window.currentMatches || []).filter(m => ['FT', 'AET', 'PEN'].includes(m.fixture?.status?.short));
-+  const results = finished.slice(0, 20).map(m => {
-+    const details = buildMatchAnalyses(m);
-+    const goals = (m.goals?.home ?? 0) + (m.goals?.away ?? 0);
-+    const bothScored = (m.goals?.home ?? 0) > 0 && (m.goals?.away ?? 0) > 0;
-+    const best = details.best.market;
-+    const won = (
-+      (best === 'KG Var' && bothScored) ||
-+      (best === 'KG Yok' && !bothScored) ||
-+      (best === '2.5 Üst' && goals > 2) ||
-+      (best === '2.5 Alt' && goals <= 2)
-+    );
-+    return { m, details, won };
-+  });
-+
-+  const successful = results.filter(x => x.won);
-+  const filterKey = window.successFilterKey || 'all';
-+  let visible = successful;
-+  if (filterKey === 'today') visible = successful.slice(0, 5);
-+  if (filterKey === 'week') visible = successful.slice(0, 12);
-+  const fail = results.length - successful.length;
-+  const rate = results.length ? Math.round((successful.length / results.length) * 100) : 0;
-+  const rateEl = document.getElementById('successRateVal');
-+  const succEl = document.getElementById('successfulCount');
-+  const failEl = document.getElementById('failedCount');
-+  const totalEl = document.getElementById('totalAnalyzed');
-+  const badge = document.getElementById('successful-count-badge');
-+  if (rateEl) rateEl.textContent = `${rate}%`;
-+  if (succEl) succEl.textContent = String(successful.length);
-+  if (failEl) failEl.textContent = String(fail);
-+  if (totalEl) totalEl.textContent = String(results.length);
-+  if (badge) {
-+    badge.style.display = successful.length ? 'inline-flex' : 'none';
-+    badge.textContent = successful.length ? String(successful.length) : '';
-+  }
-+
-+  if (!visible.length) {
-+    container.innerHTML = '<div class="empty-state"><i class="fas fa-info-circle"></i><p>Henüz tamamlanan ve tutan analiz bulunmuyor.</p></div>';
-+    return;
-+  }
-+
-+  container.innerHTML = visible.map(({ m, details }) => `
-+    <div class="ai-card">
-+      <div class="ai-card-header">
-+        <span class="ai-league">${escapeHtml(m.league?.name || 'Lig')}</span>
-+        <span class="ai-confidence high">%${details.best.confidence}</span>
-+      </div>
-+      <div class="ai-teams">${escapeHtml(m.teams?.home?.name || '')} vs ${escapeHtml(m.teams?.away?.name || '')}</div>
-+      <div class="ai-form-line">Tutan Analiz: <strong>${details.best.market}</strong> @${details.best.odd}</div>
-+      <div class="ai-form-line">Skor: ${m.goals?.home ?? 0}-${m.goals?.away ?? 0}</div>
-+    </div>
-+  `).join('');
-+}
-+
-+function filterAI(key, btn) {
-+  window.aiFilterKey = key;
-+  document.querySelectorAll('#sec-ai .ftab').forEach(el => el.classList.remove('active'));
-+  if (btn) btn.classList.add('active');
-+  renderAIPredictions();
-+}
-+
-+function filterSuccessful(key, btn) {
-+  window.successFilterKey = key;
-+  document.querySelectorAll('#sec-successful .ftab').forEach(el => el.classList.remove('active'));
-+  if (btn) btn.classList.add('active');
-+  renderSuccessfulAnalyses();
-+}
-+
-+// ===== MAÇ KARTI =====
-+function matchCard(m, isLive) {
-+  const fixture = m.fixture;
-+  const teams = m.teams;
-+  const league = m.league;
-+  const goals = m.goals;
-+  
-+  const matchId = fixture.id;
-+  const homeTeam = teams.home.name;
-+  const awayTeam = teams.away.name;
-+  const leagueName = league.name;
-+  const leagueFlag = getLeagueFlag(league.country);
-+  
-+  const scoreStr = isLive ? `${goals.home ?? 0} - ${goals.away ?? 0}` : '';
-+  const timeStr = new Date(fixture.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-+  const statusLabel = isLive ? `<span class="match-minute live-dot">${fixture.status.elapsed}'</span>` : '';
-+  
-+  const odds1 = '1.80';
-+  const oddsX = '3.40';
-+  const odds2 = '4.20';
-+  
-+  const matchData = {
-+    id: matchId,
-+    home: homeTeam,
-+    away: awayTeam,
-+    league: leagueName,
-+    flag: leagueFlag,
-+    time: timeStr
-+  };
-+  
-+  const savedPick = getPickForMatch(matchId);
-+  
-+  return `
-+  <div class="match-card" data-id="${matchId}">
-+    <div class="match-league"><span class="league-flag">${leagueFlag}</span>${leagueName}</div>
-+    <div class="match-teams">
-+      <div class="teams">${homeTeam} <span style="color:var(--text-muted)">vs</span> ${awayTeam}</div>
-+      <div class="match-time">${statusLabel} ${isLive ? scoreStr : timeStr}</div>
-+    </div>
-+    ${isLive ? `<div class="match-live-score">${scoreStr}</div>` : ''}
-+    <div class="match-odds-with-select">
-+      <button class="odds-select-btn ${savedPick?.selected === '1' ? 'selected' : ''}" 
-+        data-match-id="${matchId}" data-pick="1"
-+        onclick='selectPick(${matchId}, "1", "${odds1}", ${JSON.stringify(matchData).replace(/"/g, '&quot;')})'>
-+        <span class="pick-label">1</span><span class="pick-odd">${odds1}</span>
-+      </button>
-+      <button class="odds-select-btn ${savedPick?.selected === 'X' ? 'selected' : ''}" 
-+        data-match-id="${matchId}" data-pick="X"
-+        onclick='selectPick(${matchId}, "X", "${oddsX}", ${JSON.stringify(matchData).replace(/"/g, '&quot;')})'>
-+        <span class="pick-label">X</span><span class="pick-odd">${oddsX}</span>
-+      </button>
-+      <button class="odds-select-btn ${savedPick?.selected === '2' ? 'selected' : ''}" 
-+        data-match-id="${matchId}" data-pick="2"
-+        onclick='selectPick(${matchId}, "2", "${odds2}", ${JSON.stringify(matchData).replace(/"/g, '&quot;')})'>
-+        <span class="pick-label">2</span><span class="pick-odd">${odds2}</span>
-+      </button>
-+    </div>
-+    <button class="fav-btn" onclick="toggleFav(${matchId}, this)"><i class="fas fa-star"></i></button>
-+  </div>`;
-+}
-+
-+function getLeagueFlag(country) {
-+  const flags = {
-+    'Turkey': '🇹🇷', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Spain': '🇪🇸', 'Germany': '🇩🇪',
-+    'Italy': '🇮🇹', 'France': '🇫🇷', 'Netherlands': '🇳🇱', 'Portugal': '🇵🇹',
-+    'Brazil': '🇧🇷', 'USA': '🇺🇸', 'Argentina': '🇦🇷', 'Mexico': '🇲🇽',
-+    'Japan': '🇯🇵', 'South Korea': '🇰🇷', 'Chile': '🇨🇱', 'Colombia': '🇨🇴'
-+  };
-+  return flags[country] || '⚽';
-+}
-+
-+// ===== SEÇİMLERİM =====
-+function renderPicks() {
-+  const container = document.getElementById('picksMatches');
-+  const totalEl = document.getElementById('picksTotal');
-+  
-+  if (!container) return;
-+  
-+  if (userPicks.length === 0) {
-+    container.innerHTML = `<div class="empty-state"><i class="fas fa-crosshairs"></i><p>Henüz maç seçmediniz.</p></div>`;
-+    if (totalEl) totalEl.innerHTML = '';
-+    return;
-+  }
-+  
-+  const totalOdds = userPicks.reduce((acc, p) => acc * p.odds, 1).toFixed(2);
-+  
-+  if (totalEl) {
-+    totalEl.innerHTML = `
-+      <div class="picks-total-bar">
-+        <div class="picks-total-info">
-+          <span><i class="fas fa-receipt"></i> ${userPicks.length} Maç</span>
-+          <span class="picks-total-odds"><i class="fas fa-times"></i> Toplam Oran: <strong>${totalOdds}</strong></span>
-+        </div>
-+        <button class="picks-clear-btn" onclick="clearAllPicks()"><i class="fas fa-trash"></i> Temizle</button>
-+      </div>`;
-+  }
-+  
-+  container.innerHTML = userPicks.map(p => `
-+    <div class="match-card picks-selected-card">
-+      <div class="match-league"><span class="league-flag">${p.flag}</span>${p.league}</div>
-+      <div class="match-teams"><div class="teams">${p.home} <span style="color:var(--text-muted)">vs</span> ${p.away}</div></div>
-+      <div class="picks-pick-badge"><i class="fas fa-check-circle"></i> ${p.selected} @ ${p.odds}</div>
-+      <button class="pick-remove-btn" onclick="removePick(${p.id})"><i class="fas fa-times"></i></button>
-+    </div>
-+  `).join('');
-+}
-+
-+function clearAllPicks() {
-+  userPicks = [];
-+  savePicks();
-+  updatePickButtons();
-+  updatePicksBadge();
-+  renderPicks();
-+}
-+
-+// ===== DİĞER FONKSİYONLAR =====
-+function toggleFav(id, btn) {
-+  btn.classList.toggle('active');
-+}
-+
-+// ===== GİRİŞ =====
-+function handleLogin(e) {
-+  e.preventDefault();
-+  const email = document.getElementById('loginEmail').value.trim();
-+  const pass = document.getElementById('loginPass').value;
-+  const errEl = document.getElementById('loginError');
-+  
-+  if (!errEl) return;
-+  
-+  if (email === ADMIN_EMAIL && pass === 'admin123') {
-+    localStorage.setItem('oa_session', JSON.stringify({ name: 'Admin', email: ADMIN_EMAIL, isAdmin: true }));
-+    window.location.href = 'dashboard.html';
-+    return;
-+  }
-+  
-+  if (email === 'demo@tahminarena.com' && pass === 'demo123') {
-+    localStorage.setItem('oa_session', JSON.stringify({ name: 'Demo Kullanıcı', email: 'demo@tahminarena.com', isAdmin: false }));
-+    window.location.href = 'dashboard.html';
-+    return;
-+  }
-+  
-+  errEl.textContent = 'E-posta veya şifre hatalı!';
-+}
-+
-+function logout() {
-+  localStorage.removeItem('oa_session');
-+}
-+
-+
-+
-+// ===== KUPON YÖNETİMİ =====
-+function daySeed() {
-+  const d = new Date();
-+  return Number(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`);
-+}
-+
-+function seededPicker(seed) {
-+  return function() {
-+    seed = (seed * 1103515245 + 12345) % 2147483647;
-+    return seed / 2147483647;
-+  };
-+}
-+
-+function getSourceMatches() {
-+  return (window.aiMatches && window.aiMatches.length ? window.aiMatches : window.currentMatches) || [];
-+}
-+
-+function pickDailyMatches(countMin = 3, countMax = 4) {
-+  const all = getSourceMatches().filter(m => ['NS', 'TBD', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture?.status?.short || 'NS'));
-+  if (!all.length) return [];
-+
-+  const rand = seededPicker(daySeed());
-+  const count = Math.min(all.length, Math.max(countMin, Math.floor(rand() * (countMax - countMin + 1)) + countMin));
-+
-+  const pool = [...all];
-+  const selected = [];
-+  while (selected.length < count && pool.length) {
-+    const idx = Math.floor(rand() * pool.length);
-+    selected.push(pool.splice(idx, 1)[0]);
-+  }
-+  return selected;
-+}
-+
-+function marketForMatch(match, isPremium = false) {
-+  const analyses = typeof buildMatchAnalyses === 'function' ? buildMatchAnalyses(match) : { markets: [] };
-+  const markets = analyses.markets || [];
-+  if (!markets.length) {
-+    return { market: '2.5 Üst', odd: '1.90', confidence: isPremium ? 99 : 82 };
-+  }
-+  const sorted = [...markets].sort((a, b) => b.confidence - a.confidence);
-+  const best = sorted[0];
-+  return {
-+    market: best.market,
-+    odd: best.odd,
-+    confidence: isPremium ? Math.max(99, best.confidence) : best.confidence
-+  };
-+}
-+
-+function renderCoupons() {
-+  const hero = document.getElementById('couponHero');
-+  const list = document.getElementById('couponMatches');
-+  if (!hero || !list) return;
-+
-+  const selected = pickDailyMatches(3, 4);
-+  if (!selected.length) {
-+    hero.innerHTML = '<div class="empty-state"><p>Kupon üretmek için maç verisi bekleniyor.</p></div>';
-+    list.innerHTML = '';
-+    return;
-+  }
-+
-+  const rows = selected.map(m => {
-+    const pick = marketForMatch(m, false);
-+    const t = new Date(m.fixture?.date || Date.now()).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-+    return {
-+      teams: `${m.teams?.home?.name || 'Ev'} vs ${m.teams?.away?.name || 'Deplasman'}`,
-+      league: m.league?.name || 'Lig',
-+      time: t,
-+      pick
-+    };
-+  });
-+
-+  const totalOdd = rows.reduce((acc, r) => acc * Number(r.pick.odd), 1).toFixed(2);
-+  hero.innerHTML = `
-+    <div class="coupon-date"><i class="fas fa-calendar"></i> ${new Date().toLocaleDateString('tr-TR')} Günlük Tahmin Kuponu</div>
-+    <div class="coupon-hero-stats">
-+      <div><strong>${rows.length}</strong> Maç</div>
-+      <div><strong>${totalOdd}</strong> Toplam Oran</div>
-+      <div><strong>%84+</strong> Ortalama Güven</div>
-+    </div>
-+  `;
-+
-+  list.innerHTML = rows.map((r, i) => `
-+    <div class="match-card">
-+      <div class="match-league">${i + 1}. Maç • ${r.league}</div>
-+      <div class="match-teams"><div class="teams">${r.teams}</div><div class="match-time">${r.time}</div></div>
-+      <div class="ai-form-line"><strong>${r.pick.market}</strong> @${r.pick.odd} • Güven: %${r.pick.confidence}</div>
-+    </div>
-+  `).join('');
-+}
-+
-+function renderPremiumCoupon() {
-+  const locked = document.getElementById('premiumLocked');
-+  const content = document.getElementById('premiumContent');
-+  const dateEl = document.getElementById('premiumCouponDate');
-+  const listEl = document.getElementById('premiumCouponContent');
-+  const totalEl = document.getElementById('premiumTotalOdds');
-+  if (!locked || !content || !dateEl || !listEl || !totalEl) return;
-+
-+  const premium = typeof isPremium === 'function' ? isPremium() : false;
-+  if (!premium) {
-+    locked.classList.remove('hidden');
-+    content.classList.add('hidden');
-+    return;
-+  }
-+
-+  locked.classList.add('hidden');
-+  content.classList.remove('hidden');
-+
-+  const selected = pickDailyMatches(3, 4);
-+  dateEl.innerHTML = `<i class="fas fa-calendar"></i> ${new Date().toLocaleDateString('tr-TR')} • Yapay Zeka Premium Kupon`;
-+
-+  if (!selected.length) {
-+    listEl.innerHTML = '<div class="empty-state"><p>Premium kupon için maç verisi bekleniyor.</p></div>';
-+    totalEl.textContent = '-';
-+    return;
-+  }
-+
-+  const picks = selected.map((m, i) => {
-+    const p = marketForMatch(m, true);
-+    const tm = new Date(m.fixture?.date || Date.now()).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-+    const live = ['1H', 'HT', '2H', 'LIVE'].includes(m.fixture?.status?.short || '');
-+    const score = `${m.goals?.home ?? 0}-${m.goals?.away ?? 0}`;
-+    return {
-+      index: i + 1,
-+      league: m.league?.name || 'Lig',
-+      teams: `${m.teams?.home?.name || 'Ev'} vs ${m.teams?.away?.name || 'Dep'}`,
-+      time: tm,
-+      live,
-+      score,
-+      pick: p
-+    };
-+  });
-+
-+  totalEl.textContent = picks.reduce((a, x) => a * Number(x.pick.odd), 1).toFixed(2);
-+
-+  listEl.innerHTML = picks.map(x => `
-+    <div class="match-card">
-+      <div class="match-league">${x.index}. Maç • ${x.league}</div>
-+      <div class="match-teams">
-+        <div class="teams">${x.teams}</div>
-+        <div class="match-time">${x.time} ${x.live ? `• <span class="live-score">Canlı ${x.score}</span>` : ''}</div>
-+      </div>
-+      <div class="ai-form-line"><strong>${x.pick.market}</strong> @${x.pick.odd} • Güven: %${x.pick.confidence}</div>
-+    </div>
-+  `).join('');
-+}
-+
-+function refreshDailyCoupon() {
-+  renderCoupons();
-+  renderPremiumCoupon();
-+}
-+
-+window.addEventListener('DOMContentLoaded', () => {
-+  renderCoupons();
-+  renderPremiumCoupon();
-+});
-+
-+
-+// ===== INIT =====
-+function initDashboard() {
-+  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
-+  if (!session) { window.location.href = 'index.html'; return; }
-+  
-+  const nameEl = document.getElementById('dashUserName');
-+  if (nameEl) nameEl.textContent = session.isAdmin ? '👑 ' + session.name : session.name;
-+  
-+  const emailEl = document.getElementById('dashUserEmail');
-+  if (emailEl) emailEl.textContent = session.email;
-+  
-+  loadMatches();
-+  if (typeof renderCoupons === 'function') renderCoupons();
-+  if (typeof renderPremiumCoupon === 'function') renderPremiumCoupon();
-+}
-+
-+// ===== SECTION NAV =====
-+const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare','picks','successful','premium'];
-+const TITLES = {
-+  live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
-+  upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
-+  ai:'Tahminler', coupon:'Günlük Kupon', compare:'Oran Karşılaştırma',
-+  picks:'Seçimlerim', successful:'Tutan Analizlerimiz', premium:'Premium Kupon'
-+};
-+
-+function showSection(key) {
-+  SECTIONS.forEach(s => {
-+    const el = document.getElementById('sec-'+s);
-+    if (el) el.classList.toggle('hidden', s !== key);
-+  });
-+  const titleEl = document.getElementById('sectionTitle');
-+  if (titleEl) titleEl.textContent = TITLES[key] || '';
-+  document.querySelectorAll('.nav-item').forEach(el => {
-+    const onclick = el.getAttribute('onclick') || '';
-+    el.classList.toggle('active', onclick.includes(`'${key}'`));
-+  });
-+  if (key === 'picks') renderPicks();
-+  if (key === 'ai') renderAIPredictions();
-+  if (key === 'successful') renderSuccessfulAnalyses();
-+}
-+
-+function toggleSidebar() {
-+  const sidebar = document.getElementById('sidebar');
-+  if (sidebar) sidebar.classList.toggle('open');
-+}
-+
-+document.addEventListener('DOMContentLoaded', () => {
-+  if (document.getElementById('dashUserName')) initDashboard();
-+});
+// ===== GERÇEK VERİ: football-data.org API =====
+const API_BASE = 'https://api.football-data.org/v4';
+
+const LEAGUE_META = {
+  PL:   { name: 'Premier Lig',       flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', key: 'pl'  },
+  PD:   { name: 'La Liga',           flag: '🇪🇸', key: 'll'  },
+  BL1:  { name: 'Bundesliga',        flag: '🇩🇪', key: 'bl'  },
+  SA:   { name: 'Serie A',           flag: '🇮🇹', key: 'sa'  },
+  FL1:  { name: 'Ligue 1',           flag: '🇫🇷', key: 'fl'  },
+  CL:   { name: 'Şampiyonlar Ligi',  flag: '🇪🇺', key: 'cl'  },
+  DED:  { name: 'Eredivisie',        flag: '🇳🇱', key: 'ned' },
+  PPL:  { name: 'Primeira Liga',     flag: '🇵🇹', key: 'por' },
+  ELC:  { name: 'Championship',      flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', key: 'ch'  },
+  BSA:  { name: 'Brezilya Ligi',     flag: '🇧🇷', key: 'bsa' },
+  MLS:  { name: 'MLS',               flag: '🇺🇸', key: 'mls' },
+  EL:   { name: 'Avrupa Ligi',       flag: '🇪🇺', key: 'el'  },
+  ECNL: { name: 'Konferans Ligi',    flag: '🇪🇺', key: 'ecl' },
+  WC:   { name: 'Dünya Kupası',      flag: '🌍', key: 'wc'  },
+};
+
+function getApiKey() { return localStorage.getItem('oa_api_key') || ''; }
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { alert('Lütfen API anahtarı girin!'); return; }
+  localStorage.setItem('oa_api_key', key);
+  document.getElementById('apiBanner').classList.add('hidden');
+  updateApiStatus(true);
+  loadRealMatches();
+}
+
+function skipApiKey() {
+  document.getElementById('apiBanner').classList.add('hidden');
+  document.getElementById('liveMatches').innerHTML = '<div class="empty-state"><i class="fas fa-key"></i><p>API anahtarı gerekli</p><small>Gerçek maç verileri için API anahtarınızı girin.</small></div>';
+  document.getElementById('upcomingMatches').innerHTML = '<div class="empty-state"><p>API bağlantısı yok</p></div>';
+}
+
+function showApiSetup() {
+  const banner = document.getElementById('apiBanner');
+  banner.classList.remove('hidden');
+  const existing = getApiKey();
+  if (existing) document.getElementById('apiKeyInput').value = existing;
+  banner.scrollIntoView({ behavior: 'smooth' });
+}
+
+function updateApiStatus(connected) {
+  const btn = document.getElementById('apiStatusBtn');
+  const txt = document.getElementById('apiStatusText');
+  if (!btn) return;
+  if (connected) {
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    txt.textContent = 'API Bağlı';
+  } else {
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    txt.textContent = 'API Yok';
+  }
+}
+
+function autoGenPredictions(matches) {
+  return matches.map((m, idx) => {
+    const o1 = parseFloat(m.odds?.h || 2.00);
+    const oX = parseFloat(m.odds?.d || 3.30);
+    const o2 = parseFloat(m.odds?.a || 3.50);
+
+    const p1 = 1 / o1, pX = 1 / oX, p2 = 1 / o2;
+    const total = p1 + pX + p2;
+    const c1 = Math.round(p1 / total * 100);
+    const cX = Math.round(pX / total * 100);
+    const c2 = 100 - c1 - cX;
+
+    const minOdds = Math.min(o1, o2);
+    const difficulty = minOdds <= 1.60 ? 'easy' : minOdds <= 2.20 ? 'medium' : 'hard';
+    const modelScore = Math.min(95, Math.round(85 - (minOdds - 1.0) * 20 + Math.random() * 8));
+
+    const resultPick = c1 >= c2 ? { pick: '1', label: 'MS Ev Kazanır', conf: c1, odds: o1 }
+                                 : { pick: '2', label: 'MS Deplasman',  conf: c2, odds: o2 };
+    
+    const markets = {
+      result: resultPick,
+      ou: { pick: 'Üst', label: 'Üst 2.5 Gol', conf: 55, odds: 1.80 },
+      btts: { pick: 'Var', label: 'KG Var', conf: 60, odds: 1.75 },
+      ht: { pick: 'İY 1', label: 'İY Ev Önde', conf: 45, odds: 2.10 },
+    };
+    
+    const bestKey = 'result';
+
+    return {
+      id: m.id || idx + 100,
+      league: m.league,
+      leagueKey: m.leagueKey || 'other',
+      flag: m.flag || '⚽',
+      home: m.home,
+      away: m.away,
+      difficulty,
+      modelScore,
+      markets,
+      bestPick: bestKey,
+      reason: `${m.home} vs ${m.away} maçında istatistiksel analiz yapıldı.`,
+      matchTime: m.time || '20:00',
+      matchOdds: m.odds || { h: '-', d: '-', a: '-' }
+    };
+  });
+}
+
+let ALL_API_MATCHES = [];
+
+async function loadRealMatches() {
+  const key = getApiKey();
+  if (!key) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const liveEl = document.getElementById('liveMatches');
+  const upcomingEl = document.getElementById('upcomingMatches');
+
+  liveEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Tüm maçlar yükleniyor...</div>';
+  upcomingEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</div>';
+
+  try {
+    const res = await fetch(`${API_BASE}/matches?dateFrom=${today}&dateTo=${today}`, {
+      headers: { 'X-Auth-Token': key }
+    });
+
+    if (!res.ok) throw new Error(res.status === 403 ? 'Geçersiz API anahtarı!' : `API Hatası: ${res.status}`);
+
+    const data = await res.json();
+    const matches = data.matches || [];
+
+    ALL_API_MATCHES = matches;
+    updateApiStatus(true);
+
+    const live = matches.filter(m => ['IN_PLAY','PAUSED','HALFTIME'].includes(m.status));
+    const upcoming = matches.filter(m => ['SCHEDULED','TIMED'].includes(m.status));
+    const finished = matches.filter(m => m.status === 'FINISHED');
+
+    document.getElementById('liveCount').textContent = live.length;
+    document.getElementById('todayCount').textContent = matches.length;
+
+    if (live.length > 0) {
+      liveEl.innerHTML = groupByLeague(live, true);
+    } else if (finished.length > 0) {
+      liveEl.innerHTML = `<div class="api-section-label"><i class="fas fa-flag-checkered"></i> Tamamlanan Maçlar (${finished.length})</div>` + groupByLeague(finished, false, true);
+    } else {
+      liveEl.innerHTML = '<div class="empty-state"><i class="fas fa-circle"></i><p>Şu an canlı maç yok.</p></div>';
+    }
+
+    if (upcoming.length > 0) {
+      upcomingEl.innerHTML = `<div class="match-count-bar"><i class="fas fa-calendar-alt"></i> Bugün ${upcoming.length} maç planlandı</div>` + groupByLeague(upcoming, false);
+    } else {
+      upcomingEl.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Yaklaşan maç yok.</p></div>';
+    }
+
+    const forAI = [...upcoming, ...live].map(m => apiMatchToMock(m));
+    window._currentAIPredictions = autoGenPredictions(forAI);
+
+    if (live.length > 0) setTimeout(loadRealMatches, 60000);
+
+  } catch (err) {
+    liveEl.innerHTML = `<div class="empty-state error-state"><i class="fas fa-exclamation-triangle"></i><p>${err.message}</p><small>API anahtarınızı kontrol edin.</small></div>`;
+    upcomingEl.innerHTML = '';
+    updateApiStatus(false);
+  }
+}
+
+function apiMatchToMock(m) {
+  const lg = LEAGUE_META[m.competition?.code] || { name: m.competition?.name || 'Lig', flag: '⚽', key: 'other' };
+  const matchDate = new Date(m.utcDate);
+  const timeStr = matchDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+  return {
+    id: m.id,
+    league: lg.name,
+    leagueKey: lg.key,
+    flag: lg.flag,
+    home: m.homeTeam?.shortName || m.homeTeam?.name || '?',
+    away: m.awayTeam?.shortName || m.awayTeam?.name || '?',
+    time: timeStr,
+    odds: { h: '-', d: '-', a: '-' }
+  };
+}
+
+function groupByLeague(matches, isLive, isFinished = false) {
+  const groups = {};
+  matches.forEach(m => {
+    const key = m.competition?.name || 'Diğer';
+    if (!groups[key]) groups[key] = { meta: m.competition, matches: [] };
+    groups[key].matches.push(m);
+  });
+
+  return Object.entries(groups).map(([name, g]) => {
+    const lg = LEAGUE_META[g.meta?.code] || { flag: '⚽' };
+    const cards = g.matches.map(m => realMatchCard(m, isLive, isFinished)).join('');
+    return `<div class="league-group">
+      <div class="league-group-header">${lg.flag} ${name} <span class="league-match-count">${g.matches.length} maç</span></div>
+      ${cards}
+    </div>`;
+  }).join('');
+}
+
+function realMatchCard(m, isLive, isFinished = false) {
+  const lg = LEAGUE_META[m.competition?.code] || { name: m.competition?.name || 'Lig', flag: '⚽' };
+  const homeScore = m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? '';
+  const awayScore = m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? '';
+  const scoreStr = homeScore !== '' ? `${homeScore} - ${awayScore}` : '- -';
+  const matchDate = new Date(m.utcDate);
+  const timeStr = matchDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+
+  const statusLabel = isFinished ? '<span class="match-finished">Bitti</span>'
+    : isLive ? '<span class="match-minute live-dot">Canlı</span>' : '';
+
+  return `
+  <div class="match-card real-match">
+    <div class="match-league"><span class="league-flag">${lg.flag}</span>${lg.name}</div>
+    <div class="match-teams">
+      <div class="teams">${m.homeTeam?.shortName || m.homeTeam?.name} <span style="color:var(--text-muted)">vs</span> ${m.awayTeam?.shortName || m.awayTeam?.name}</div>
+      <div class="match-time">${statusLabel} ${timeStr}</div>
+    </div>
+    <div class="match-live-score" style="${!isLive && !isFinished ? 'font-size:.85rem;color:var(--text-muted)' : ''}">${isLive || isFinished ? scoreStr : timeStr}</div>
+    <div class="match-odds">
+      <div class="odd-btn"><span class="odd-label">1</span><span class="odd-val">-</span></div>
+      <div class="odd-btn"><span class="odd-label">X</span><span class="odd-val">-</span></div>
+      <div class="odd-btn"><span class="odd-label">2</span><span class="odd-val">-</span></div>
+    </div>
+  </div>`;
+}
+
+// ===== AUTH =====
+function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+  const user = users.find(u => u.email === email && u.pass === btoa(pass));
+  if (email === 'demo@tahminarena.com' && pass === 'demo123') {
+    localStorage.setItem('oa_session', JSON.stringify({ name: 'Demo Kullanıcı', email }));
+    window.location.href = '/dashboard.html'; return;
+  }
+  if (!user) { errEl.textContent = 'E-posta veya şifre hatalı!'; return; }
+  errEl.textContent = '';
+  localStorage.setItem('oa_session', JSON.stringify({ name: user.name, email: user.email }));
+  window.location.href = '/dashboard.html';
+}
+
+function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  const errEl = document.getElementById('regError');
+  const sucEl = document.getElementById('regSuccess');
+  if (pass.length < 6) { errEl.textContent = 'Şifre en az 6 karakter!'; return; }
+  if (pass !== pass2) { errEl.textContent = 'Şifreler eşleşmiyor!'; return; }
+  const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+  if (users.find(u => u.email === email)) { errEl.textContent = 'Bu e-posta zaten kayıtlı!'; return; }
+  errEl.textContent = '';
+  users.push({ name, email, pass: btoa(pass) });
+  localStorage.setItem('oa_users', JSON.stringify(users));
+  sucEl.textContent = 'Kayıt başarılı! Yönlendiriliyorsunuz...';
+  setTimeout(() => {
+    localStorage.setItem('oa_session', JSON.stringify({ name, email }));
+    window.location.href = '/dashboard.html';
+  }, 1500);
+}
+
+function logout() { localStorage.removeItem('oa_session'); }
+
+function togglePass(id, el) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+}
+
+// ===== DASHBOARD INIT =====
+let favorites = JSON.parse(localStorage.getItem('oa_favs') || '[]');
+
+function initDashboard() {
+  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
+  if (!session) { window.location.href = '/'; return; }
+  document.getElementById('dashUserName').textContent = session.name;
+  document.getElementById('dashUserEmail').textContent = session.email;
+
+  startClock();
+  updatePremiumLock();
+  updateSuccessStats();
+
+  const key = getApiKey();
+  if (key) {
+    document.getElementById('apiBanner').classList.add('hidden');
+    updateApiStatus(true);
+    loadRealMatches();
+  } else {
+    updateApiStatus(false);
+    document.getElementById('liveMatches').innerHTML = '<div class="empty-state"><i class="fas fa-key"></i><p>API anahtarı gerekli</p><small>Gerçek maç verileri için API anahtarınızı girin.</small></div>';
+    document.getElementById('upcomingMatches').innerHTML = '<div class="empty-state"><p>API bağlantısı yok</p></div>';
+    document.getElementById('liveCount').textContent = '0';
+    document.getElementById('todayCount').textContent = '0';
+  }
+}
+
+function startClock() {
+  const el = document.getElementById('clock');
+  if (!el) return;
+  function tick() { el.textContent = new Date().toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit', second:'2-digit' }); }
+  tick(); setInterval(tick, 1000);
+}
+
+// ===== PREMIUM KONTROLÜ =====
+const ADMIN_EMAIL = 'djclubu@tahminarena.com';
+
+function isPremium() {
+  const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
+  if (!session) return false;
+  if (session.email === ADMIN_EMAIL) return true;
+  const users = JSON.parse(localStorage.getItem('oa_users') || '[]');
+  const user = users.find(u => u.email === session.email);
+  return user && user.premium === true;
+}
+
+function updatePremiumLock() {
+  const navItem = document.querySelector('.premium-nav-item');
+  const lockIcon = document.getElementById('premiumNavLock');
+  if (navItem && lockIcon) {
+    if (isPremium()) {
+      navItem.classList.add('has-premium');
+      lockIcon.style.display = 'none';
+    } else {
+      navItem.classList.remove('has-premium');
+      lockIcon.style.display = 'inline';
+    }
+  }
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ===== YZ TAHMİN =====
+function confidenceColor(s) { return s>=80?'bar-green':s>=60?'bar-yellow':'bar-red'; }
+function confidenceLabel(s) {
+  return s>=80?{text:'Yüksek Güven',cls:'pick-high'}:s>=60?{text:'Orta Güven',cls:'pick-medium'}:{text:'Düşük Güven',cls:'pick-low'};
+}
+const MARKET_ICONS = { result:'fa-trophy', ou:'fa-sort-amount-up', btts:'fa-exchange-alt', ht:'fa-flag' };
+const MARKET_LABELS = { result:'Maç Sonucu', ou:'Alt / Üst 2.5', btts:'KG Var / Yok', ht:'İlk Yarı' };
+
+function difficultyInfo(d) {
+  return d==='easy'?{cls:'diff-easy',icon:'fa-check-circle',text:'Kolay'}
+        :d==='medium'?{cls:'diff-medium',icon:'fa-minus-circle',text:'Orta'}
+        :{cls:'diff-hard',icon:'fa-times-circle',text:'Zor'};
+}
+
+function renderAIPredictions(data) {
+  const container = document.getElementById('aiCards');
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-robot"></i><p>Analiz edilecek maç bulunamadı.</p><small>API bağlantısı kurulunca tüm maçlar analiz edilir.</small></div>';
+    return;
+  }
+  
+  const finished = getFinishedMatches();
+  
+  container.innerHTML = data.map(p => {
+    const lbl = confidenceLabel(p.modelScore);
+    const diff = difficultyInfo(p.difficulty);
+    const bestMkt = p.markets[p.bestPick];
+    
+    const finishedMatch = finished.find(f => f.id === p.id);
+    const isFinished = !!finishedMatch;
+    const isSuccess = isFinished && finishedMatch.isSuccess;
+    
+    const marketRows = Object.entries(p.markets).map(([key,mkt]) => {
+      const isBest = key === p.bestPick;
+      const confCls = mkt.conf>=70?'conf-green':mkt.conf>=55?'conf-yellow':'conf-red';
+      return `<div class="market-row ${isBest?'market-best':''}">
+        <div class="market-info"><i class="fas ${MARKET_ICONS[key]}"></i><span class="market-name">${MARKET_LABELS[key]}</span>${isBest?'<span class="best-tag">EN İYİ</span>':''}</div>
+        <div class="market-pick">${mkt.label}</div>
+        <div class="market-meta"><span class="market-conf ${confCls}">${mkt.conf}%</span><span class="market-odd">@${mkt.odds}</span></div>
+        <div class="conf-mini-wrap"><div class="conf-mini-bar ${confidenceColor(mkt.conf)}" style="width:0%" data-target="${mkt.conf}%"></div></div>
+      </div>`;
+    }).join('');
+    
+    const matchTime = p.matchTime || '20:00';
+    const matchOdds = p.matchOdds || { h: '-', d: '-', a: '-' };
+    
+    return `
+    <div class="ai-card ai-card-${p.difficulty} ${isFinished ? (isSuccess ? 'match-finished-success' : 'match-finished-failed') : ''}" style="position:relative;">
+      ${isFinished ? `<div class="finished-badge ${isSuccess ? 'success' : 'failed'}">${isSuccess ? '✓ Tuttu' : '✗ Tutmadı'}</div>` : ''}
+      <div class="ai-card-header">
+        <div class="ai-card-league">${p.flag} ${p.league}</div>
+        <div class="ai-card-badges">
+          <span class="diff-badge-card ${diff.cls}"><i class="fas ${diff.icon}"></i> ${diff.text}</span>
+          <span class="pick-badge ${lbl.cls}">${lbl.text}</span>
+        </div>
+      </div>
+      <div class="ai-card-match">${p.home} <span>vs</span> ${p.away}</div>
+      
+      <div class="ai-match-meta">
+        <div class="ai-match-time"><i class="fas fa-clock"></i> ${matchTime}</div>
+        <div class="ai-match-odds">
+          <div class="ai-odd-box"><span class="ai-odd-label">1</span><span class="ai-odd-val">${matchOdds.h}</span></div>
+          <div class="ai-odd-box"><span class="ai-odd-label">X</span><span class="ai-odd-val">${matchOdds.d}</span></div>
+          <div class="ai-odd-box"><span class="ai-odd-label">2</span><span class="ai-odd-val">${matchOdds.a}</span></div>
+        </div>
+      </div>
+      
+      <div class="ai-best-pick">
+        <div class="ai-best-label"><i class="fas fa-robot"></i> YZ En İyi Seçim</div>
+        <div class="ai-best-value">${bestMkt.label} <span class="ai-best-odd">@${bestMkt.odds}</span></div>
+        <div class="ai-best-conf">
+          <div class="confidence-bar-wrap"><div class="confidence-bar ${confidenceColor(bestMkt.conf)}" style="width:0%" data-target="${bestMkt.conf}%"></div></div>
+          <span class="conf-pct">${bestMkt.conf}%</span>
+        </div>
+      </div>
+      <div class="markets-list">${marketRows}</div>
+      <div class="ai-card-footer">
+        <div class="ai-reason"><i class="fas fa-comment-dots"></i> ${p.reason}</div>
+        <div class="model-score-row">
+          <span class="model-score-label">Model Skoru</span>
+          <div class="model-score-bar"><div class="model-score-fill ${confidenceColor(p.modelScore)}" style="width:${p.modelScore}%"></div></div>
+          <span class="model-score-val ${confidenceColor(p.modelScore)}">${p.modelScore}/100</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  
+  requestAnimationFrame(() => setTimeout(() => {
+    document.querySelectorAll('.confidence-bar[data-target],.conf-mini-bar[data-target]').forEach(b => b.style.width=b.dataset.target);
+  }, 80));
+}
+
+function filterAI(level, btn) {
+  document.querySelectorAll('#sec-ai .ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const src = window._currentAIPredictions || [];
+  const filtered = level==='all' ? src
+    : src.filter(p => level==='high'?p.modelScore>=80:level==='medium'?p.modelScore>=60&&p.modelScore<80:p.modelScore<60);
+  renderAIPredictions(filtered);
+}
+
+// ===== GÜNLÜK KUPON =====
+function generateCoupon(predictions) {
+  const src = predictions || window._currentAIPredictions || [];
+  if (src.length === 0) {
+    document.getElementById('couponHero').innerHTML = '<div class="empty-state"><p>Kupon oluşturulamadı. API bağlantısı gerekli.</p></div>';
+    document.getElementById('couponMatches').innerHTML = '';
+    return;
+  }
+  
+  const sorted = [...src]
+    .filter(p => p.difficulty !== 'hard' || p.modelScore >= 80)
+    .sort((a,b) => b.modelScore - a.modelScore)
+    .slice(0, 3);
+
+  const picks = sorted.map(p => {
+    const bestKey = Object.entries(p.markets).reduce((a,b) => b[1].conf>a[1].conf?b:a)[0];
+    return { ...p, selectedMarket: p.markets[bestKey], marketKey: bestKey };
+  });
+
+  const totalOdds = picks.reduce((acc,p) => acc * p.selectedMarket.odds, 1).toFixed(2);
+  const avgConf = Math.round(picks.reduce((acc,p) => acc + p.selectedMarket.conf, 0) / picks.length);
+  const combined = Math.round(picks.reduce((a,p) => a * p.selectedMarket.conf/100, 1) * 100);
+  const today = new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+
+  document.getElementById('couponHero').innerHTML = `
+  <div class="coupon-hero-inner">
+    <div class="coupon-date"><i class="fas fa-calendar"></i> ${today}</div>
+    <div class="coupon-hero-stats">
+      <div class="coupon-stat"><div class="coupon-stat-val">${totalOdds}</div><div class="coupon-stat-label">Toplam Oran</div></div>
+      <div class="coupon-divider"></div>
+      <div class="coupon-stat"><div class="coupon-stat-val">%${avgConf}</div><div class="coupon-stat-label">Ort. Güven</div></div>
+      <div class="coupon-divider"></div>
+      <div class="coupon-stat"><div class="coupon-stat-val">${picks.length}</div><div class="coupon-stat-label">Maç</div></div>
+      <div class="coupon-divider"></div>
+      <div class="coupon-stat highlight"><div class="coupon-stat-val">%${combined}</div><div class="coupon-stat-label">Birleşik İhtimal</div></div>
+    </div>
+    <div class="coupon-hero-badge"><i class="fas fa-robot"></i> ${avgConf>=75?'Yüksek Güvenli Kupon':'Orta Güvenli Kupon'}</div>
+  </div>`;
+
+  document.getElementById('couponMatches').innerHTML = picks.map((p,i) => {
+    const diff = difficultyInfo(p.difficulty);
+    const confCls = p.selectedMarket.conf>=75?'conf-green':p.selectedMarket.conf>=60?'conf-yellow':'conf-red';
+    const matchTime = p.matchTime || '20:00';
+    return `
+    <div class="coupon-match-card ai-card-${p.difficulty}">
+      <div class="coupon-num">${i+1}</div>
+      <div class="coupon-match-body">
+        <div class="coupon-match-header">
+          <span class="coupon-league">${p.flag} ${p.league} | <i class="fas fa-clock" style="font-size:.7rem;"></i> ${matchTime}</span>
+          <span class="diff-badge-card ${diff.cls}"><i class="fas ${diff.icon}"></i> ${diff.text}</span>
+        </div>
+        <div class="coupon-match-name">${p.home} <span>vs</span> ${p.away}</div>
+        <div class="coupon-pick-row">
+          <div class="coupon-pick-type"><i class="fas ${MARKET_ICONS[p.marketKey]}"></i> ${MARKET_LABELS[p.marketKey]}</div>
+          <div class="coupon-pick-val">${p.selectedMarket.label}</div>
+          <div class="coupon-pick-odd">@${p.selectedMarket.odds}</div>
+          <div class="coupon-pick-conf ${confCls}">%${p.selectedMarket.conf}</div>
+        </div>
+        <div class="coupon-mini-bar-wrap"><div class="coupon-mini-bar ${confidenceColor(p.selectedMarket.conf)}" style="width:${p.selectedMarket.conf}%"></div></div>
+        <div class="coupon-reason">${p.reason}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function refreshDailyCoupon() {
+  const newCoupon = getDailyCoupon();
+  if (newCoupon) {
+    generateCoupon(newCoupon.picks);
+  }
+}
+
+// ===== TUTAN ANALİZLER =====
+function renderSuccessfulPredictions(filter = 'all') {
+  const container = document.getElementById('successfulCards');
+  if (!container) return;
+  
+  const successful = getSuccessfulPredictions();
+  
+  let displayData = [];
+  
+  if (filter === 'today') {
+    const today = getTodayString();
+    displayData = successful.filter(f => f.date === today);
+  } else if (filter === 'week') {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    displayData = successful.filter(f => new Date(f.date) >= weekAgo);
+  } else {
+    displayData = successful;
+  }
+  
+  displayData = displayData.reverse();
+  
+  if (displayData.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <i class="fas fa-check-circle"></i>
+        <p>Henüz tutan analiz yok.</p>
+        <small>Maçlar bittiğinde tutan analizler burada görünecek.</small>
+      </div>`;
+    return;
+  }
+  
+  container.innerHTML = displayData.map(item => {
+    const pred = item.prediction || item.selectedMarket || {};
+    
+    return `
+      <div class="success-card success">
+        <div class="success-card-header">
+          <div class="success-card-league">
+            <span>${item.flag || '⚽'}</span> ${item.league}
+          </div>
+          <div class="success-result-badge success">
+            <i class="fas fa-check"></i> Tuttu
+          </div>
+        </div>
+        <div class="success-card-match">${item.home} <span>vs</span> ${item.away}</div>
+        <div class="success-prediction-row">
+          <div class="success-prediction-info">
+            <span class="success-prediction-label">YZ Tahmini</span>
+            <span class="success-prediction-val">${pred.label || pred.pick || '-'}</span>
+          </div>
+          <span class="success-prediction-odd">@${pred.odds || '-'}</span>
+        </div>
+        <div class="success-actual-result success">
+          <i class="fas fa-trophy"></i> Gerçekleşen: ${item.actualResult || '-'}
+        </div>
+        <div class="success-date">
+          <i class="fas fa-calendar"></i> ${new Date(item.date).toLocaleDateString('tr-TR')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterSuccessful(filter, btn) {
+  document.querySelectorAll('#sec-successful .ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSuccessfulPredictions(filter);
+}
+
+function updateSuccessStats() {
+  const stats = getSuccessStats();
+  
+  const rateEl = document.getElementById('successRateVal');
+  const successEl = document.getElementById('successfulCount');
+  const totalEl = document.getElementById('totalAnalyzed');
+  const badgeEl = document.getElementById('successful-count-badge');
+  
+  if (rateEl) rateEl.textContent = stats.successRate + '%';
+  if (successEl) successEl.textContent = stats.totalSuccessful;
+  if (totalEl) totalEl.textContent = stats.totalFinished;
+  if (badgeEl) {
+    badgeEl.textContent = stats.totalSuccessful || '';
+    badgeEl.style.display = stats.totalSuccessful > 0 ? 'inline-flex' : 'none';
+  }
+  
+  const mainRateEl = document.getElementById('successRate');
+  if (mainRateEl) mainRateEl.textContent = stats.successRate + '%';
+}
+
+// ===== SECTION NAV =====
+const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare','picks','premium','successful'];
+const TITLES = {
+  live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
+  upcoming:'Yaklaşan Maçlar', favorites:'Favorilerim',
+  ai:'YZ Tahmin', coupon:'Günlük YZ Kuponu', compare:'Oran Karşılaştırma',
+  picks:'Seçimlerim', premium:'Premium Kupon', successful:'Tutan Analizler'
+};
+
+function showSection(key) {
+  SECTIONS.forEach(s => {
+    const el = document.getElementById('sec-'+s);
+    if (el) el.classList.toggle('hidden', s !== key);
+  });
+  document.getElementById('sectionTitle').textContent = TITLES[key] || '';
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    el.classList.toggle('active', onclick.includes(`'${key}'`));
+  });
+  if (key === 'ai') renderAIPredictions(window._currentAIPredictions || []);
+  if (key === 'coupon') generateCoupon(window._currentAIPredictions || []);
+  if (key === 'successful') {
+    renderSuccessfulPredictions();
+    updateSuccessStats();
+  }
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('dashUserName')) initDashboard();
+});
