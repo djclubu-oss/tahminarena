@@ -24,6 +24,7 @@ class App {
     this.startClock();
     this.loadMyCoupon();
     await this.loadLiveMatches();
+    this.setupNavigation();
   }
 
   setupEventListeners() {
@@ -48,6 +49,11 @@ class App {
     const email = document.getElementById('loginEmail')?.value;
     const password = document.getElementById('loginPass')?.value;
     const errorEl = document.getElementById('loginError');
+
+    if (!email || !password) {
+      if (errorEl) errorEl.textContent = 'E-posta ve şifre gereklidir!';
+      return;
+    }
 
     const result = authService.login(email, password);
     
@@ -81,11 +87,11 @@ class App {
 
   async loadLiveMatches() {
     const container = document.getElementById('liveMatches');
-    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Canlı maçlar yükleniyor...</p></div>';
+    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Maçlar yükleniyor...</p></div>';
 
     try {
       const data = await apiService.getLiveMatches();
-      console.log('API Data:', data);
+      console.log('Loaded matches:', data);
       
       this.liveMatches = data.response || [];
 
@@ -93,7 +99,7 @@ class App {
       document.getElementById('apiInfo').innerHTML = `<span class="requests">${apiService.getRequestCount()} / 75,000</span>`;
 
       if (this.liveMatches.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Şu an canlı maç yok.</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Bugün maç yok.</p></div>';
         return;
       }
 
@@ -101,7 +107,7 @@ class App {
 
     } catch (error) {
       console.error('Load error:', error);
-      container.innerHTML = `<div class="empty-state error"><i class="fas fa-exclamation-triangle"></i><p>Hata: ${error.message}</p><small>Lütfen sayfayı yenileyin (F5)</small></div>`;
+      container.innerHTML = `<div class="empty-state error"><i class="fas fa-exclamation-triangle"></i><p>Hata: ${error.message}</p></div>`;
     }
   }
 
@@ -112,30 +118,35 @@ class App {
       const isLive = ['1H', '2H', 'HT', 'ET'].includes(match.fixture?.status?.short);
       const status = match.fixture?.status;
       const isInCoupon = this.myCoupon.some(c => c.fixtureId === match.fixture.id);
+      const matchTime = new Date(match.fixture?.date).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
 
       return `
         <div class="match-card ${isLive ? 'live' : ''}">
           <div class="match-header">
-            <span class="league">${match.league?.name || 'Lig'}</span>
+            <span class="league">
+              <img src="${match.league?.logo || ''}" alt="" onerror="this.style.display='none'">
+              ${match.league?.name || 'Lig'}
+            </span>
             <span class="match-status ${isLive ? 'live' : ''}">
-              ${isLive ? '<span class="live-indicator-dot"></span>' : ''}
-              ${status?.elapsed || 0}'
+              ${isLive ? '<span class="live-indicator-dot"></span> Canlı' : matchTime}
             </span>
           </div>
           
           <div class="match-teams">
             <div class="team home">
+              <img src="${match.teams?.home?.logo || ''}" alt="" onerror="this.style.display='none'">
               <span>${match.teams?.home?.name || 'Ev Sahibi'}</span>
             </div>
             
             <div class="score">
-              <span>${match.goals?.home ?? 0}</span>
+              <span>${match.goals?.home ?? '-'}</span>
               <span class="separator">-</span>
-              <span>${match.goals?.away ?? 0}</span>
+              <span>${match.goals?.away ?? '-'}</span>
             </div>
             
             <div class="team away">
               <span>${match.teams?.away?.name || 'Deplasman'}</span>
+              <img src="${match.teams?.away?.logo || ''}" alt="" onerror="this.style.display='none'">
             </div>
           </div>
           
@@ -164,7 +175,8 @@ class App {
         homeTeam: match.teams.home.name,
         awayTeam: match.teams.away.name,
         league: match.league.name,
-        score: `${match.goals.home}-${match.goals.away}`
+        score: `${match.goals.home}-${match.goals.away}`,
+        odds: '1.80'
       });
     }
 
@@ -174,13 +186,97 @@ class App {
     const added = index < 0;
     btn.className = `add-to-coupon ${added ? 'added' : ''}`;
     btn.innerHTML = `<i class="fas ${added ? 'fa-check' : 'fa-plus'}"></i> ${added ? 'Kuponda' : 'Kupona Ekle'}`;
+    
+    this.updateMyCouponUI();
   }
 
   loadMyCoupon() {
     const saved = localStorage.getItem('ta_user_coupon');
     if (saved) {
       this.myCoupon = JSON.parse(saved);
+      this.updateMyCouponUI();
     }
+  }
+
+  updateMyCouponUI() {
+    const countEl = document.getElementById('my-coupon-count');
+    if (countEl) {
+      countEl.textContent = this.myCoupon.length;
+      countEl.style.display = this.myCoupon.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    const container = document.getElementById('myCouponMatches');
+    if (!container) return;
+
+    if (this.myCoupon.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-ticket-alt"></i>
+          <p>Henüz maç eklemediniz.</p>
+        </div>
+      `;
+    } else {
+      container.innerHTML = this.myCoupon.map((match, idx) => `
+        <div class="match-card" style="position: relative;">
+          <button class="remove-from-coupon" onclick="app.removeFromCoupon(${idx})">
+            <i class="fas fa-times"></i>
+          </button>
+          <div class="match-header">
+            <span class="league">${match.league}</span>
+          </div>
+          <div class="match-teams">
+            <div class="team"><span>${match.homeTeam}</span></div>
+            <div class="score">${match.score}</div>
+            <div class="team"><span>${match.awayTeam}</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  removeFromCoupon(index) {
+    const match = this.myCoupon[index];
+    this.myCoupon.splice(index, 1);
+    localStorage.setItem('ta_user_coupon', JSON.stringify(this.myCoupon));
+    this.updateCouponButton(match.fixtureId, false);
+    this.updateMyCouponUI();
+  }
+
+  updateCouponButton(fixtureId, added) {
+    const btn = document.getElementById(`btn-${fixtureId}`);
+    if (btn) {
+      btn.className = `add-to-coupon ${added ? '' : 'added'}`;
+      btn.innerHTML = `<i class="fas ${added ? 'fa-plus' : 'fa-check'}"></i> ${added ? 'Kupona Ekle' : 'Kuponda'}`;
+    }
+  }
+
+  setupNavigation() {
+    window.showSection = (section) => {
+      ['live', 'ai', 'coupon', 'my-coupon', 'successful', 'premium'].forEach(s => {
+        const el = document.getElementById(`sec-${s}`);
+        if (el) el.classList.add('hidden');
+      });
+
+      const selectedEl = document.getElementById(`sec-${section}`);
+      if (selectedEl) selectedEl.classList.remove('hidden');
+
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('onclick')?.includes(section)) {
+          item.classList.add('active');
+        }
+      });
+
+      const titles = {
+        live: 'Canlı Maçlar',
+        'my-coupon': 'Oynadığım Kupon',
+        premium: 'Premium Kupon'
+      };
+      const titleEl = document.getElementById('sectionTitle');
+      if (titleEl) titleEl.textContent = titles[section] || '';
+
+      if (section === 'my-coupon') this.updateMyCouponUI();
+    };
   }
 
   startClock() {
@@ -227,33 +323,12 @@ function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
 
-function showSection(section) {
-  ['live', 'ai', 'coupon', 'my-coupon', 'successful', 'premium'].forEach(s => {
-    const el = document.getElementById(`sec-${s}`);
-    if (el) el.classList.add('hidden');
-  });
-
-  const selectedEl = document.getElementById(`sec-${section}`);
-  if (selectedEl) selectedEl.classList.remove('hidden');
-
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.remove('active');
-    if (item.getAttribute('onclick')?.includes(section)) {
-      item.classList.add('active');
-    }
-  });
-
-  const titles = {
-    live: 'Canlı Maçlar',
-    'my-coupon': 'Oynadığım Kupon',
-    premium: 'Premium Kupon'
-  };
-  const titleEl = document.getElementById('sectionTitle');
-  if (titleEl) titleEl.textContent = titles[section] || '';
-}
-
 function clearMyCoupon() {
   app.myCoupon = [];
   localStorage.removeItem('ta_user_coupon');
-  location.reload();
+  app.updateMyCouponUI();
+}
+
+function updateCouponWin() {
+  app.updateMyCouponUI();
 }
