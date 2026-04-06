@@ -1,3 +1,11 @@
+// ===== TOGGLE PASSWORD =====
+function togglePass(id, el) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+}
+
 // ===== API CONFIG =====
 const API_BASE = 'https://v3.football.api-sports.io';
 const API_KEY = 'e8287b49fa0bb657f2b4582bb13a496e';
@@ -7,7 +15,8 @@ const ADMIN_EMAIL = 'djclubu@tahminarena.com';
 function isPremium() {
   const session = JSON.parse(localStorage.getItem('oa_session') || 'null');
   if (!session) return false;
-  if (session.email === ADMIN_EMAIL) return true;
+  if (session.email === 'djclubu@tahminarena.com') return true;
+  if (session.isAdmin === true) return true;
   return session.isPremium === true;
 }
 
@@ -102,6 +111,7 @@ async function loadMatches() {
     const todayMatches = todayData.response || [];
     
     window.currentMatches = [...liveMatches, ...todayMatches];
+    window.aiMatches = todayMatches;
     
     // Canlı maçları göster
     if (liveMatches.length > 0) {
@@ -119,9 +129,6 @@ async function loadMatches() {
     } else {
       upcomingEl.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>Yaklaşan maç yok.</p></div>';
     }
-    
-    // YZ Tahmin için maçları kaydet
-    window.aiMatches = todayMatches;
     
     updatePickButtons();
     updatePicksBadge();
@@ -153,7 +160,7 @@ function renderAIPredictions() {
   displayMatches.forEach((m, i) => {
     const analysis = simpleAnalysis(m);
     html += `
-      <div class="ai-card ${i >= 2 ? 'premium-only' : ''}">
+      <div class="ai-card">
         <div class="ai-card-header">
           <span class="ai-league">${m.league?.name || 'Lig'}</span>
           <span class="ai-confidence ${analysis.confidenceClass}">${analysis.confidence}%</span>
@@ -190,7 +197,6 @@ function simpleAnalysis(m) {
   const home = m.teams?.home?.name || '';
   const away = m.teams?.away?.name || '';
   
-  // Rastgele ama mantıklı tahmin
   const rand = Math.random();
   let pick, odd, confidence, reason;
   
@@ -340,13 +346,6 @@ function toggleFav(id, btn) {
   btn.classList.toggle('active');
 }
 
-function togglePass(id, el) {
-  const inp = document.getElementById(id);
-  if (!inp) return;
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  el.innerHTML = inp.type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-}
-
 // ===== GİRİŞ =====
 function handleLogin(e) {
   e.preventDefault();
@@ -389,9 +388,7 @@ function initDashboard() {
   loadMatches();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('dashUserName')) initDashboard();
-});// ===== SECTION NAV =====
+// ===== SECTION NAV =====
 const SECTIONS = ['live','odds','stats','upcoming','favorites','ai','coupon','compare','picks','premium'];
 const TITLES = {
   live:'Canlı Maçlar', odds:'Oran Analizi', stats:'İstatistikler',
@@ -415,3 +412,11 @@ function showSection(key) {
   if (key === 'ai') renderAIPredictions();
 }
 
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.classList.toggle('open');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('dashUserName')) initDashboard();
+});
