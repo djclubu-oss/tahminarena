@@ -1,149 +1,231 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TahminArena - Dashboard</title>
-  <base href="/">
-  <link rel="stylesheet" href="css/style.css"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="dash-body">
-
-  <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <i class="fas fa-chart-line"></i>
-      <span>TahminArena</span>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" onclick="showSection('live')">
-        <i class="fas fa-circle live-dot"></i> Canlı Maçlar
-      </a>
-      <a href="#" class="nav-item" onclick="showSection('ai')">
-        <i class="fas fa-robot"></i> YZ Tahmin
-      </a>
-      <a href="#" class="nav-item" onclick="showSection('coupon')">
-        <i class="fas fa-ticket-alt"></i> Günlük Kupon
-      </a>
-      <a href="#" class="nav-item" onclick="showSection('successful')">
-        <i class="fas fa-check-circle"></i> Tutan Analizler
-      </a>
-      <a href="#" class="nav-item premium-nav-item" onclick="showSection('premium')">
-        <i class="fas fa-crown"></i> Premium Kupon
-        <i class="fas fa-lock premium-lock-icon" id="premiumNavLock"></i>
-      </a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-info">
-        <i class="fas fa-user-circle"></i>
-        <div>
-          <span id="dashUserName">Kullanıcı</span>
-          <small id="dashUserEmail">kullanici@email.com</small>
-        </div>
-      </div>
-      <a href="./" class="btn-logout" onclick="logout()">
-        <i class="fas fa-sign-out-alt"></i>
-      </a>
-    </div>
-  </aside>
-
-  <!-- Main Content -->
-  <div class="dash-content">
-
-    <!-- API Key Banner -->
-    <div class="api-banner" id="apiBanner">
-      <i class="fas fa-key"></i>
-      <span>Gerçek maç verileri için football-data.org API anahtarınızı girin:</span>
-      <input type="text" id="apiKeyInput" placeholder="API anahtarınızı buraya yapıştırın..." />
-      <button onclick="saveApiKey()"><i class="fas fa-check"></i> Kaydet ve Yükle</button>
-      <button class="btn-skip" onclick="skipApiKey()">Şimdilik Geç</button>
-    </div>
-
-    <!-- Topbar -->
-    <div class="topbar">
-      <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-      <div class="topbar-title" id="sectionTitle">Canlı Maçlar</div>
-      <div class="topbar-right">
-        <div class="live-badge"><i class="fas fa-circle"></i> CANLI</div>
-        <div class="clock" id="clock"></div>
-        <button class="api-key-btn" id="apiStatusBtn" onclick="showApiSetup()" title="API Ayarları">
-          <i class="fas fa-key"></i> <span id="apiStatusText">API Yok</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Stat Cards -->
-    <div class="stat-cards">
-      <div class="stat-card">
-        <div class="stat-icon green"><i class="fas fa-futbol"></i></div>
-        <div><div class="stat-num" id="liveCount">0</div><div class="stat-label">Canlı Maç</div></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon blue"><i class="fas fa-calendar"></i></div>
-        <div><div class="stat-num" id="todayCount">0</div><div class="stat-label">Bugünkü Maç</div></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon red"><i class="fas fa-percent"></i></div>
-        <div><div class="stat-num" id="successRate">0%</div><div class="stat-label">Tahmin Başarısı</div></div>
-      </div>
-    </div>
-
-    <!-- CANLI MAÇLAR -->
-    <section class="section" id="sec-live">
-      <div class="section-header">
-        <h3><i class="fas fa-circle live-dot"></i> Canlı Maçlar</h3>
-      </div>
-      <div class="matches-list" id="liveMatches"></div>
-    </section>
-
-    <!-- YZ TAHMİN -->
-    <section class="section hidden" id="sec-ai">
-      <div class="section-header">
-        <h3><i class="fas fa-robot"></i> YZ Tahmin Motoru</h3>
-      </div>
-      <div class="ai-cards-grid" id="aiCards"></div>
-    </section>
-
-    <!-- GÜNLÜK KUPON -->
-    <section class="section hidden" id="sec-coupon">
-      <div class="section-header">
-        <h3><i class="fas fa-ticket-alt"></i> Günlük YZ Kuponu</h3>
-      </div>
-      <div class="coupon-hero" id="couponHero"></div>
-      <div id="couponMatches"></div>
-    </section>
-
-    <!-- TUTAN ANALİZLER -->
-    <section class="section hidden" id="sec-successful">
-      <div class="section-header">
-        <h3><i class="fas fa-check-circle"></i> Tutan Analizler</h3>
-      </div>
-      <div class="ai-cards-grid" id="successfulCards"></div>
-    </section>
-
-    <!-- PREMİUM KUPON -->
-    <section class="section hidden" id="sec-premium">
-      <div class="section-header">
-        <h3><i class="fas fa-crown"></i> Premium Kupon</h3>
-      </div>
-      <div id="premiumLocked">
-        <div class="premium-lock-overlay">
-          <i class="fas fa-lock"></i>
-          <h2>Premium Üyelik Gerekli</h2>
-          <p>Bu bölüm sadece premium üyelere özeldir.</p>
-          <p class="premium-contact">Premium olmak için: <strong>djclubu@tahminarena.com</strong></p>
-        </div>
-      </div>
-      <div id="premiumContent" class="hidden">
-        <div id="premiumCouponContent"></div>
-      </div>
-    </section>
-
-  </div>
-
-  <script src="js/couponManager.js"></script>
-  <script src="js/app.js"></script>
-</body>
-</html>
+diff --git a/dashboard.html b/dashboard.html
+index 683324e251cf33cb0f8ce191720d4089ae2b3d08..d6b8e6f9ab93cd0963990a25e45109cf18f950ea 100644
+--- a/dashboard.html
++++ b/dashboard.html
+@@ -1,149 +1,77 @@
+-<!DOCTYPE html>
+-<html lang="tr">
+-<head>
+-  <meta charset="UTF-8"/>
+-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+-  <title>TahminArena - Dashboard</title>
+-  <base href="/">
+-  <link rel="stylesheet" href="css/style.css"/>
+-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+-</head>
+-<body class="dash-body">
+-
+-  <!-- Sidebar -->
+-  <aside class="sidebar" id="sidebar">
+-    <div class="sidebar-logo">
+-      <i class="fas fa-chart-line"></i>
+-      <span>TahminArena</span>
+-    </div>
+-    <nav class="sidebar-nav">
+-      <a href="#" class="nav-item active" onclick="showSection('live')">
+-        <i class="fas fa-circle live-dot"></i> Canlı Maçlar
+-      </a>
+-      <a href="#" class="nav-item" onclick="showSection('ai')">
+-        <i class="fas fa-robot"></i> YZ Tahmin
+-      </a>
+-      <a href="#" class="nav-item" onclick="showSection('coupon')">
+-        <i class="fas fa-ticket-alt"></i> Günlük Kupon
+-      </a>
+-      <a href="#" class="nav-item" onclick="showSection('successful')">
+-        <i class="fas fa-check-circle"></i> Tutan Analizler
+-      </a>
+-      <a href="#" class="nav-item premium-nav-item" onclick="showSection('premium')">
+-        <i class="fas fa-crown"></i> Premium Kupon
+-        <i class="fas fa-lock premium-lock-icon" id="premiumNavLock"></i>
+-      </a>
+-    </nav>
+-    <div class="sidebar-footer">
+-      <div class="user-info">
+-        <i class="fas fa-user-circle"></i>
+-        <div>
+-          <span id="dashUserName">Kullanıcı</span>
+-          <small id="dashUserEmail">kullanici@email.com</small>
+-        </div>
+-      </div>
+-      <a href="./" class="btn-logout" onclick="logout()">
+-        <i class="fas fa-sign-out-alt"></i>
+-      </a>
+-    </div>
+-  </aside>
+-
+-  <!-- Main Content -->
+-  <div class="dash-content">
+-
+-    <!-- API Key Banner -->
+-    <div class="api-banner" id="apiBanner">
+-      <i class="fas fa-key"></i>
+-      <span>Gerçek maç verileri için football-data.org API anahtarınızı girin:</span>
+-      <input type="text" id="apiKeyInput" placeholder="API anahtarınızı buraya yapıştırın..." />
+-      <button onclick="saveApiKey()"><i class="fas fa-check"></i> Kaydet ve Yükle</button>
+-      <button class="btn-skip" onclick="skipApiKey()">Şimdilik Geç</button>
+-    </div>
+-
+-    <!-- Topbar -->
+-    <div class="topbar">
+-      <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+-      <div class="topbar-title" id="sectionTitle">Canlı Maçlar</div>
+-      <div class="topbar-right">
+-        <div class="live-badge"><i class="fas fa-circle"></i> CANLI</div>
+-        <div class="clock" id="clock"></div>
+-        <button class="api-key-btn" id="apiStatusBtn" onclick="showApiSetup()" title="API Ayarları">
+-          <i class="fas fa-key"></i> <span id="apiStatusText">API Yok</span>
+-        </button>
+-      </div>
+-    </div>
+-
+-    <!-- Stat Cards -->
+-    <div class="stat-cards">
+-      <div class="stat-card">
+-        <div class="stat-icon green"><i class="fas fa-futbol"></i></div>
+-        <div><div class="stat-num" id="liveCount">0</div><div class="stat-label">Canlı Maç</div></div>
+-      </div>
+-      <div class="stat-card">
+-        <div class="stat-icon blue"><i class="fas fa-calendar"></i></div>
+-        <div><div class="stat-num" id="todayCount">0</div><div class="stat-label">Bugünkü Maç</div></div>
+-      </div>
+-      <div class="stat-card">
+-        <div class="stat-icon red"><i class="fas fa-percent"></i></div>
+-        <div><div class="stat-num" id="successRate">0%</div><div class="stat-label">Tahmin Başarısı</div></div>
+-      </div>
+-    </div>
+-
+-    <!-- CANLI MAÇLAR -->
+-    <section class="section" id="sec-live">
+-      <div class="section-header">
+-        <h3><i class="fas fa-circle live-dot"></i> Canlı Maçlar</h3>
+-      </div>
+-      <div class="matches-list" id="liveMatches"></div>
+-    </section>
+-
+-    <!-- YZ TAHMİN -->
+-    <section class="section hidden" id="sec-ai">
+-      <div class="section-header">
+-        <h3><i class="fas fa-robot"></i> YZ Tahmin Motoru</h3>
+-      </div>
+-      <div class="ai-cards-grid" id="aiCards"></div>
+-    </section>
+-
+-    <!-- GÜNLÜK KUPON -->
+-    <section class="section hidden" id="sec-coupon">
+-      <div class="section-header">
+-        <h3><i class="fas fa-ticket-alt"></i> Günlük YZ Kuponu</h3>
+-      </div>
+-      <div class="coupon-hero" id="couponHero"></div>
+-      <div id="couponMatches"></div>
+-    </section>
+-
+-    <!-- TUTAN ANALİZLER -->
+-    <section class="section hidden" id="sec-successful">
+-      <div class="section-header">
+-        <h3><i class="fas fa-check-circle"></i> Tutan Analizler</h3>
+-      </div>
+-      <div class="ai-cards-grid" id="successfulCards"></div>
+-    </section>
+-
+-    <!-- PREMİUM KUPON -->
+-    <section class="section hidden" id="sec-premium">
+-      <div class="section-header">
+-        <h3><i class="fas fa-crown"></i> Premium Kupon</h3>
+-      </div>
+-      <div id="premiumLocked">
+-        <div class="premium-lock-overlay">
+-          <i class="fas fa-lock"></i>
+-          <h2>Premium Üyelik Gerekli</h2>
+-          <p>Bu bölüm sadece premium üyelere özeldir.</p>
+-          <p class="premium-contact">Premium olmak için: <strong>djclubu@tahminarena.com</strong></p>
+-        </div>
+-      </div>
+-      <div id="premiumContent" class="hidden">
+-        <div id="premiumCouponContent"></div>
+-      </div>
+-    </section>
+-
+-  </div>
+-
+-  <script src="js/couponManager.js"></script>
+-  <script src="js/app.js"></script>
+-</body>
+-</html>
++<!DOCTYPE html>
++<html lang="tr">
++<head>
++  <meta charset="UTF-8" />
++  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
++  <title>TahminArena - Dashboard</title>
++  <base href="/">
++  <link rel="stylesheet" href="css/style.css"/>
++  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
++</head>
++<body class="dash-body">
++  <aside class="sidebar" id="sidebar">
++    <div class="logo"><i class="fas fa-futbol"></i><span>TahminArena</span></div>
++    <nav class="sidebar-nav">
++      <a class="nav-item active" href="#" onclick="showSection('live')">Canlı Maçlar</a>
++      <a class="nav-item" href="#" onclick="showSection('ai')">AI Analizler</a>
++      <a class="nav-item" href="#" onclick="showSection('successful')">Tutan Analizler</a>
++      <a class="nav-item" href="#" onclick="showSection('coupon')">Günlük Kupon</a>
++      <a class="nav-item" href="#" onclick="showSection('premium')">Premium</a>
++    </nav>
++    <div class="sidebar-footer">
++      <div>
++        <div id="dashUserName">Kullanıcı</div>
++        <small id="dashUserEmail" class="muted"></small>
++      </div>
++      <a href="./" onclick="logout()" class="logout-btn">Çıkış</a>
++    </div>
++  </aside>
++
++  <main class="dash-content">
++    <header class="topbar">
++      <button class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
++      <h2 id="sectionTitle">Canlı Maçlar</h2>
++      <div class="topbar-right">
++        <span id="clock"></span>
++      </div>
++    </header>
++
++    <div class="stat-grid">
++      <article class="stat-card"><h3 id="todayCount">0</h3><p>Bugünkü Maç</p></article>
++      <article class="stat-card"><h3 id="liveCount">0</h3><p>Canlı Maç</p></article>
++      <article class="stat-card"><h3 id="successRate">0%</h3><p>Başarı Oranı</p></article>
++    </div>
++
++    <section id="sec-live" class="panel-section">
++      <h3>Canlı Skorlar</h3>
++      <div id="liveMatches" class="card-grid"></div>
++    </section>
++
++    <section id="sec-ai" class="panel-section hidden">
++      <h3>AI Analizler <small class="muted">(İlk 2 analiz ücretsiz)</small></h3>
++      <div id="aiCards" class="card-grid"></div>
++    </section>
++
++    <section id="sec-successful" class="panel-section hidden">
++      <h3>Tutan Analizler</h3>
++      <div id="successfulCards" class="card-grid"></div>
++    </section>
++
++    <section id="sec-coupon" class="panel-section hidden">
++      <h3>Günlük Kupon</h3>
++      <div id="couponHero"></div>
++      <div id="couponMatches" class="card-grid"></div>
++    </section>
++
++    <section id="sec-premium" class="panel-section hidden">
++      <h3>Premium</h3>
++      <div class="premium-box">
++        Premium üyelikte tüm analizler blur olmadan görünür ve detaylı senaryo metinleri açılır.
++      </div>
++    </section>
++  </main>
++
++  <script src="js/couponManager.js"></script>
++  <script src="js/app.js"></script>
++</body>
++</html>
