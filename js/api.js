@@ -2,7 +2,6 @@
 
 class ApiService {
   constructor() {
-    // Doğrudan API'ye bağlan
     this.baseUrl = 'https://v3.football.api-sports.io';
     this.headers = {
       'x-rapidapi-host': 'v3.football.api-sports.io',
@@ -11,40 +10,28 @@ class ApiService {
     this.requestCount = 0;
   }
 
-  async getLiveMatches() {
+  // TÜM canlı maçları getir (lig filtresiz)
+  async getAllLiveMatches() {
     try {
-      console.log('Fetching from:', `${this.baseUrl}/fixtures?live=all`);
+      console.log('Fetching ALL live matches...');
       
       const response = await fetch(`${this.baseUrl}/fixtures?live=all`, {
         method: 'GET',
-        headers: this.headers,
-        mode: 'cors'
+        headers: this.headers
       });
 
-      console.log('Status:', response.status);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
       const data = await response.json();
-      console.log('Matches found:', data.response?.length);
+      console.log('All live matches:', data.response?.length || 0);
       
       this.requestCount++;
-      
-      // Eğer boşsa yaklaşan maçları dene
-      if (!data.response || data.response.length === 0) {
-        return this.getTodayMatches();
-      }
-      
       return data;
     } catch (error) {
-      console.error('API Error:', error);
-      // CORS hatası olursa bugünkü maçları göster
-      return this.getTodayMatches();
+      console.error('Live fetch error:', error);
+      return { response: [] };
     }
   }
 
+  // Bugünkü maçları getir
   async getTodayMatches() {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -52,12 +39,11 @@ class ApiService {
       
       const response = await fetch(`${this.baseUrl}/fixtures?date=${today}`, {
         method: 'GET',
-        headers: this.headers,
-        mode: 'cors'
+        headers: this.headers
       });
 
       const data = await response.json();
-      console.log('Today matches:', data.response?.length);
+      console.log('Today matches:', data.response?.length || 0);
       
       this.requestCount++;
       return data;
@@ -65,6 +51,31 @@ class ApiService {
       console.error('Today fetch error:', error);
       return { response: [] };
     }
+  }
+
+  // Ana fonksiyon: Önce canlı, yoksa bugünkü
+  async getMatches() {
+    // 1. Canlı maçları dene
+    const liveData = await this.getAllLiveMatches();
+    
+    if (liveData.response && liveData.response.length > 0) {
+      console.log('Returning live matches');
+      return { 
+        ...liveData, 
+        isLive: true,
+        count: liveData.response.length 
+      };
+    }
+    
+    // 2. Canlı yoksa bugünkü maçları getir
+    console.log('No live matches, fetching today...');
+    const todayData = await this.getTodayMatches();
+    
+    return { 
+      ...todayData, 
+      isLive: false,
+      count: todayData.response?.length || 0 
+    };
   }
 
   getRequestCount() {
