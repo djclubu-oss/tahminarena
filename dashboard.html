@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TahminArena - Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="dash-body">
@@ -20,7 +20,7 @@
         <i class="fas fa-circle"></i> Canlı Maçlar
       </a>
       <a href="#" class="nav-item" onclick="showSection('ai')">
-        <i class="fas fa-robot"></i> YZ Tahmin
+        <i class="fas fa-robot"></i> YZ Tahminleri
       </a>
       <a href="#" class="nav-item" onclick="showSection('coupon')">
         <i class="fas fa-ticket-alt"></i> Günlük Kupon
@@ -33,7 +33,8 @@
         <i class="fas fa-check-circle"></i> Tutan Analizler
       </a>
       <a href="#" class="nav-item premium-nav" onclick="showSection('premium')">
-        <i class="fas fa-crown"></i> <span class="premium-text">Premium Kupon</span>
+        <i class="fas fa-crown"></i> 
+        <span class="premium-text">Premium Kupon</span>
         <i class="fas fa-lock premium-lock-icon" id="premiumNavLock"></i>
       </a>
     </nav>
@@ -46,7 +47,7 @@
           <small id="dashUserEmail">-</small>
         </div>
       </div>
-      <a href="/" class="btn-logout" onclick="logout()">
+      <a href="index.html" class="btn-logout" onclick="logout()">
         <i class="fas fa-sign-out-alt"></i> Çıkış Yap
       </a>
     </div>
@@ -87,12 +88,13 @@
       <div class="stat-card">
         <div class="stat-icon red"><i class="fas fa-percent"></i></div>
         <div>
-          <div class="stat-num" id="successRate">0%</div>
-          <div class="stat-label">Başarı Oranı</div>
+          <div class="stat-num" id="successRate">%85+</div>
+          <div class="stat-label">Premium Başarı</div>
         </div>
       </div>
     </div>
 
+    <!-- Canlı Maçlar Section -->
     <section class="section" id="sec-live">
       <div class="live-filters">
         <button class="filter-btn active" onclick="filterLive('all')">Tümü</button>
@@ -108,13 +110,21 @@
       </div>
     </section>
 
+    <!-- YZ Tahmin Section -->
     <section class="section hidden" id="sec-ai">
       <div class="section-header">
         <h3><i class="fas fa-robot"></i> Yapay Zeka Tahminleri</h3>
+        <small style="color: var(--text-muted);">Normal üyeler sadece 2 tahmin görebilir</small>
       </div>
-      <div class="ai-cards-grid" id="aiCards"></div>
+      <div class="ai-cards-grid" id="aiCards">
+        <div class="loading-state">
+          <i class="fas fa-brain fa-spin"></i>
+          <p>YZ analiz yapıyor...</p>
+        </div>
+      </div>
     </section>
 
+    <!-- Günlük Kupon Section -->
     <section class="section hidden" id="sec-coupon">
       <div class="section-header">
         <h3><i class="fas fa-ticket-alt"></i> Günlük Kupon</h3>
@@ -123,6 +133,7 @@
       <div id="couponMatches"></div>
     </section>
 
+    <!-- Oynadığım Kupon Section -->
     <section class="section hidden" id="sec-my-coupon">
       <div class="section-header">
         <h3><i class="fas fa-futbol"></i> Oynadığım Kupon Maçları</h3>
@@ -146,29 +157,35 @@
         <div class="empty-state">
           <i class="fas fa-ticket-alt"></i>
           <p>Henüz maç eklemediniz.</p>
-          <small>Canlı maçlardan seçim yaparak kupon oluşturun.</small>
+          <small>Canlı maçlardan veya YZ tahminlerinden seçim yapın.</small>
         </div>
       </div>
     </section>
 
+    <!-- Tutan Analizler Section -->
     <section class="section hidden" id="sec-successful">
       <div class="section-header">
         <h3><i class="fas fa-check-circle"></i> Tutan Analizler</h3>
       </div>
-      <div class="ai-cards-grid" id="successfulCards"></div>
+      <div class="ai-cards-grid" id="successfulCards">
+        <div class="empty-state">
+          <i class="fas fa-check-circle"></i>
+          <p>Henüz tutan tahmin bulunmuyor.</p>
+        </div>
+      </div>
     </section>
 
+    <!-- Premium Section -->
     <section class="section hidden" id="sec-premium">
       <div id="premiumLocked">
         <div class="premium-lock-overlay">
           <i class="fas fa-crown"></i>
           <h2>Premium Üyelik Gerekli</h2>
           <p>Bu bölüm sadece premium üyelere özeldir.</p>
-          <p>Premium üyelik ile:</p>
-          <ul style="text-align: left; display: inline-block; margin: 20px 0; color: var(--text-muted)">
-            <li>Günlük 3 özel kupon</li>
-            <li>Tüm YZ tahminlerine erişim</li>
-            <li>Detaylı istatistikler</li>
+          <ul>
+            <li>Günlük 3 özel kupon (%90+ başarı)</li>
+            <li>Tüm YZ tahminlerine sınırsız erişim</li>
+            <li>Detaylı istatistikler ve analizler</li>
             <li>Öncelikli destek</li>
           </ul>
           <p class="premium-contact">
@@ -180,9 +197,11 @@
     </section>
   </div>
 
-  <script src="/js/config.js"></script>
-  <script src="/js/api.js"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/coupons.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
