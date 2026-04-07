@@ -200,12 +200,10 @@ class CouponService {
       return;
     }
 
-    // Normal üyeler: sadece ilk 2 tahmin görünür, gerisi blur
-    // Premium üyeler: tüm tahminler görünür
-    const visibleCount = isPremium ? analyses.length : 2;
-    
+    // TÜM ANALİZLERİ GÖSTER - LİMİT YOK
+    // Sadece blur efekti premium olmayanlar için 2. tahminden sonra
     container.innerHTML = analyses.map((analysis, index) => {
-      const isBlurred = index >= visibleCount;
+      const isBlurred = !isPremium && index >= 2; // Sadece ilk 2 tahmin görünür, gerisi blur
       const confidenceClass = analysis.confidenceScore >= 80 ? 'high' : 
                              analysis.confidenceScore >= 60 ? 'medium' : 'low';
       
