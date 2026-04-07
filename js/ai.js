@@ -383,7 +383,6 @@ class AIAnalysisEngine {
       difference: homeMotivation - awayMotivation
     };
   }
-
   // ===== MARKET PROBABILITIES =====
   calculateMarkets(analysis) {
     const { xG, form, homeAdvantage, injuries, h2h, standings, motivation } = analysis;
