@@ -326,7 +326,6 @@ class CouponService {
     html += '</div>';
     return html;
   }
-
   renderPremiumCoupons(coupons) {
     const container = document.getElementById('premiumContent');
     if (!container) return;
