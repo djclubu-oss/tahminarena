@@ -354,6 +354,7 @@ class App {
       couponService.renderUserCoupon();
     }
   }
+
   // ===== AI ANALYSES =====
   
   async loadAIAnalyses() {
@@ -383,8 +384,8 @@ class App {
       container.innerHTML = `
         <div class="loading-state">
           <i class="fas fa-brain fa-spin"></i>
-          <p>Yapay zeka maçları analiz ediyor...</p>
-          <small>Bu işlem birkaç saniye sürebilir</small>
+          <p>Yapay zeka ${analyzableMatches.length} maçı analiz ediyor...</p>
+          <small>Bu işlem biraz zaman alabilir</small>
         </div>
       `;
     }
@@ -392,8 +393,9 @@ class App {
     this.isAnalyzing = true;
 
     try {
-      // Analyze matches (limit to 15 to save API calls)
+      // TÜM MAÇLARI ANALİZ ET - LİMİT YOK
       const matchesToAnalyze = analyzableMatches;
+      
       this.analyses = await aiEngine.analyzeFixtures(matchesToAnalyze);
       
       // Save analyses
@@ -593,6 +595,7 @@ class App {
     }
   }
 }
+
 // ===== GLOBAL FUNCTIONS =====
 
 function handleLogin(e) {
