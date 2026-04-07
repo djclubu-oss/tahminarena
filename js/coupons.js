@@ -21,7 +21,6 @@ class CouponService {
   addToCoupon(matchData) {
     const coupon = this.getUserCoupon();
     
-    // Check if already exists
     if (coupon.some(c => c.fixtureId === matchData.fixtureId)) {
       return { success: false, error: 'Bu maç zaten kuponunuzda!' };
     }
@@ -99,7 +98,6 @@ class CouponService {
       verifiedAt: new Date().toISOString()
     });
 
-    // Keep only last 50
     if (successful.length > 50) {
       successful.shift();
     }
@@ -140,7 +138,6 @@ class CouponService {
     const container = document.getElementById('myCouponMatches');
     const stats = this.getCouponStats();
 
-    // Update stats
     document.getElementById('myCouponCount').textContent = stats.count;
     document.getElementById('myCouponOdds').textContent = stats.totalOdds;
     document.getElementById('my-coupon-count').textContent = stats.count;
@@ -156,7 +153,7 @@ class CouponService {
       return;
     }
 
-    container.innerHTML = coupon.map((match, index) => `
+    container.innerHTML = coupon.map((match) => `
       <div class="match-card coupon-item" style="position: relative;">
         <button class="remove-from-coupon" onclick="couponService.removeFromCoupon(${match.fixtureId}); app.renderUserCoupon();">
           <i class="fas fa-times"></i>
@@ -203,7 +200,8 @@ class CouponService {
       return;
     }
 
-    // For non-premium: show only first 2, blur the rest
+    // Normal üyeler: sadece ilk 2 tahmin görünür, gerisi blur
+    // Premium üyeler: tüm tahminler görünür
     const visibleCount = isPremium ? analyses.length : 2;
     
     container.innerHTML = analyses.map((analysis, index) => {
@@ -278,7 +276,6 @@ class CouponService {
       `;
     }).join('');
 
-    // Check for successful predictions
     this.checkSuccessfulPredictions(analyses);
   }
 
@@ -287,7 +284,6 @@ class CouponService {
     
     let html = '<div class="mini-markets">';
     
-    // Result
     if (markets.result) {
       Object.entries(markets.result).forEach(([key, val]) => {
         html += `
@@ -299,7 +295,6 @@ class CouponService {
       });
     }
     
-    // O/U
     if (markets.ou) {
       Object.entries(markets.ou).slice(0, 2).forEach(([key, val]) => {
         html += `
@@ -311,7 +306,6 @@ class CouponService {
       });
     }
     
-    // BTTS
     if (markets.btts) {
       Object.entries(markets.btts).forEach(([key, val]) => {
         html += `
@@ -326,6 +320,7 @@ class CouponService {
     html += '</div>';
     return html;
   }
+
   renderPremiumCoupons(coupons) {
     const container = document.getElementById('premiumContent');
     if (!container) return;
@@ -408,8 +403,6 @@ class CouponService {
     `;
   }
 
-  // ===== CHECK SUCCESSFUL PREDICTIONS =====
-  
   async checkSuccessfulPredictions(analyses) {
     for (const analysis of analyses) {
       if (analysis.status === 'FT') {
@@ -421,21 +414,18 @@ class CouponService {
           
           let isWin = false;
           
-          // Check result
           if (analysis.bestMarket.market === 'result') {
             if (analysis.bestMarket.pick === '1' && homeGoals > awayGoals) isWin = true;
             if (analysis.bestMarket.pick === 'X' && homeGoals === awayGoals) isWin = true;
             if (analysis.bestMarket.pick === '2' && homeGoals < awayGoals) isWin = true;
           }
           
-          // Check O/U
           if (analysis.bestMarket.market === 'ou') {
             const total = homeGoals + awayGoals;
             if (analysis.bestMarket.pick === 'over25' && total > 2.5) isWin = true;
             if (analysis.bestMarket.pick === 'under25' && total < 2.5) isWin = true;
           }
           
-          // Check BTTS
           if (analysis.bestMarket.market === 'btts') {
             if (analysis.bestMarket.pick === 'yes' && homeGoals > 0 && awayGoals > 0) isWin = true;
             if (analysis.bestMarket.pick === 'no' && (homeGoals === 0 || awayGoals === 0)) isWin = true;
