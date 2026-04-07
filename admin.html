@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     .admin-container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 40px 20px;
     }
@@ -58,10 +58,14 @@
       font-size: 0.9rem;
       color: var(--text-muted);
     }
+    .user-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
     .user-status {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
     }
     .badge {
       padding: 4px 12px;
@@ -77,24 +81,40 @@
       background: var(--bg-dark);
       color: var(--text-muted);
     }
+    .badge-pending {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--blue);
+      animation: pulse 2s infinite;
+    }
     .btn-action {
       padding: 8px 16px;
       border: none;
       border-radius: var(--radius);
       cursor: pointer;
       font-size: 0.9rem;
-      transition: opacity 0.2s;
+      font-weight: 600;
+      transition: all 0.2s;
     }
     .btn-action:hover {
-      opacity: 0.8;
+      transform: translateY(-2px);
+      opacity: 0.9;
     }
     .btn-make-premium {
-      background: var(--accent);
-      color: #000;
+      background: var(--green);
+      color: #fff;
     }
     .btn-remove-premium {
       background: var(--red);
       color: #fff;
+    }
+    .btn-approve {
+      background: var(--green);
+      color: #fff;
+    }
+    .btn-reject {
+      background: var(--red);
+      color: #fff;
+      margin-left: 8px;
     }
     .stats-grid {
       display: grid;
@@ -104,18 +124,67 @@
     }
     .stat-box {
       background: var(--bg-input);
-      padding: 20px;
+      padding: 24px;
       border-radius: var(--radius);
       text-align: center;
     }
     .stat-box .number {
-      font-size: 2rem;
+      font-size: 2.5rem;
       font-weight: 700;
       color: var(--accent);
     }
     .stat-box .label {
       color: var(--text-muted);
       font-size: 0.9rem;
+      margin-top: 8px;
+    }
+    .pending-section {
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(59, 130, 246, 0.05) 100%);
+      border-color: var(--blue);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover,
+    .tab-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .api-usage-bar {
+      height: 8px;
+      background: var(--bg-dark);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .api-usage-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green) 0%, var(--accent) 50%, var(--red) 100%);
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
   </style>
 </head>
@@ -127,17 +196,18 @@
       <span>TahminArena - Admin</span>
     </div>
     <nav class="auth-nav">
-      <a href="dashboard.html">Panele Dön</a>
-      <a href="#" onclick="logout()">Çıkış Yap</a>
+      <a href="dashboard.html"><i class="fas fa-arrow-left"></i> Panele Dön</a>
+      <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Çıkış Yap</a>
     </nav>
   </header>
 
   <div class="admin-container">
     <div class="admin-header">
       <h1><i class="fas fa-cog"></i> Admin Panel</h1>
-      <span id="adminName">Admin</span>
+      <span id="adminName" style="color: var(--accent); font-weight: 600;">Admin</span>
     </div>
 
+    <!-- Stats Grid -->
     <div class="stats-grid">
       <div class="stat-box">
         <div class="number" id="totalUsers">0</div>
@@ -151,12 +221,59 @@
         <div class="number" id="freeUsers">0</div>
         <div class="label">Ücretsiz Üye</div>
       </div>
+      <div class="stat-box">
+        <div class="number" id="pendingRequests">0</div>
+        <div class="label">Bekleyen Talep</div>
+      </div>
+      <div class="stat-box">
+        <div class="number" id="apiRequests">0</div>
+        <div class="label">API Kullanımı</div>
+        <div class="api-usage-bar">
+          <div class="api-usage-fill" id="apiUsageBar" style="width: 0%"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="admin-card">
-      <h3><i class="fas fa-users"></i> Kullanıcı Yönetimi</h3>
-      <div class="user-list" id="userList">
-        <div class="loading-state">Kullanıcılar yükleniyor...</div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('pending')">
+        <i class="fas fa-clock"></i> Bekleyen Talepler
+      </button>
+      <button class="tab-btn" onclick="showTab('all')">
+        <i class="fas fa-users"></i> Tüm Kullanıcılar
+      </button>
+      <button class="tab-btn" onclick="showTab('premium')">
+        <i class="fas fa-crown"></i> Premium Üyeler
+      </button>
+    </div>
+
+    <!-- Pending Requests Tab -->
+    <div class="tab-content active" id="tab-pending">
+      <div class="admin-card pending-section">
+        <h3><i class="fas fa-clock"></i> Premium Onay Bekleyenler</h3>
+        <div class="user-list" id="pendingList">
+          <div class="loading-state">Yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Users Tab -->
+    <div class="tab-content" id="tab-all">
+      <div class="admin-card">
+        <h3><i class="fas fa-users"></i> Tüm Kullanıcılar</h3>
+        <div class="user-list" id="allUsersList">
+          <div class="loading-state">Yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium Users Tab -->
+    <div class="tab-content" id="tab-premium">
+      <div class="admin-card">
+        <h3><i class="fas fa-crown"></i> Premium Üyeler</h3>
+        <div class="user-list" id="premiumList">
+          <div class="loading-state">Yükleniyor...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -171,18 +288,82 @@
 
     // Load admin info
     const user = authService.getCurrentUser();
-    document.getElementById('adminName').textContent = user.name;
+    document.getElementById('adminName').textContent = user?.name || 'Admin';
 
-    // Load users
-    function loadUsers() {
+    // Tab switching
+    function showTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      loadData();
+    }
+
+    // Load all data
+    function loadData() {
       const users = authService.getUsers();
-      const container = document.getElementById('userList');
+      const pending = authService.getPendingPremiumRequests();
+      const premium = users.filter(u => u.premium || u.premiumApproved);
       
       // Update stats
       document.getElementById('totalUsers').textContent = users.length;
-      document.getElementById('premiumUsers').textContent = users.filter(u => u.premium).length;
-      document.getElementById('freeUsers').textContent = users.filter(u => !u.premium).length;
+      document.getElementById('premiumUsers').textContent = premium.length;
+      document.getElementById('freeUsers').textContent = users.length - premium.length;
+      document.getElementById('pendingRequests').textContent = pending.length;
+      
+      // Update API usage
+      const apiData = JSON.parse(localStorage.getItem(STORAGE_KEYS.API_REQUESTS) || '{"count": 0}');
+      document.getElementById('apiRequests').textContent = apiData.count.toLocaleString();
+      const usagePercent = (apiData.count / 75000) * 100;
+      document.getElementById('apiUsageBar').style.width = `${Math.min(100, usagePercent)}%`;
 
+      // Load lists
+      loadPendingList(pending);
+      loadAllUsersList(users);
+      loadPremiumList(premium);
+    }
+
+    function loadPendingList(pending) {
+      const container = document.getElementById('pendingList');
+      
+      if (pending.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-check-circle" style="color: var(--green);"></i>
+            <p>Bekleyen premium talebi yok.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pending.map(user => `
+        <div class="user-item" style="border-left: 3px solid var(--blue);">
+          <div class="user-info">
+            <span class="user-name">${user.name}</span>
+            <span class="user-email">${user.email}</span>
+            <span class="user-meta">
+              Kayıt: ${new Date(user.createdAt).toLocaleDateString('tr-TR')} | 
+              Talep: ${new Date(user.premiumRequestDate).toLocaleDateString('tr-TR')}
+            </span>
+          </div>
+          <div class="user-status">
+            <span class="badge badge-pending">⏳ Onay Bekliyor</span>
+            <button class="btn-action btn-approve" onclick="approveUser('${user.email}')">
+              <i class="fas fa-check"></i> Onayla
+            </button>
+            <button class="btn-action btn-reject" onclick="rejectUser('${user.email}')">
+              <i class="fas fa-times"></i> Reddet
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function loadAllUsersList(users) {
+      const container = document.getElementById('allUsersList');
+      
       if (users.length === 0) {
         container.innerHTML = '<div class="empty-state">Henüz kayıtlı kullanıcı yok.</div>';
         return;
@@ -193,37 +374,98 @@
           <div class="user-info">
             <span class="user-name">${user.name}</span>
             <span class="user-email">${user.email}</span>
+            <span class="user-meta">Kayıt: ${new Date(user.createdAt).toLocaleDateString('tr-TR')}</span>
           </div>
           <div class="user-status">
-            <span class="badge ${user.premium ? 'badge-premium' : 'badge-free'}">
-              ${user.premium ? '⭐ Premium' : 'Ücretsiz'}
+            <span class="badge ${user.premium || user.premiumApproved ? 'badge-premium' : 'badge-free'}">
+              ${user.premium || user.premiumApproved ? '⭐ Premium' : 'Ücretsiz'}
             </span>
             ${user.email !== ADMIN_EMAIL ? `
               <button 
-                class="btn-action ${user.premium ? 'btn-remove-premium' : 'btn-make-premium'}"
+                class="btn-action ${user.premium || user.premiumApproved ? 'btn-remove-premium' : 'btn-make-premium'}"
                 onclick="togglePremium('${user.email}')"
               >
-                ${user.premium ? 'Premium Kaldır' : 'Premium Yap'}
+                ${user.premium || user.premiumApproved ? 'Premium Kaldır' : 'Premium Yap'}
               </button>
-            ` : ''}
+            ` : '<span class="badge badge-premium">Admin</span>'}
           </div>
         </div>
       `).join('');
     }
 
-    // Toggle premium status
-    function togglePremium(email) {
-      const user = authService.getUsers().find(u => u.email === email);
-      if (user.premium) {
-        authService.removePremium(email);
-      } else {
-        authService.makePremium(email);
+    function loadPremiumList(premium) {
+      const container = document.getElementById('premiumList');
+      
+      if (premium.length === 0) {
+        container.innerHTML = '<div class="empty-state">Henüz premium üye yok.</div>';
+        return;
       }
-      loadUsers();
+
+      container.innerHTML = premium.map(user => `
+        <div class="user-item" style="border-left: 3px solid var(--accent);">
+          <div class="user-info">
+            <span class="user-name">${user.name}</span>
+            <span class="user-email">${user.email}</span>
+            <span class="user-meta">
+              Onay: ${user.premiumApprovedDate ? new Date(user.premiumApprovedDate).toLocaleDateString('tr-TR') : 'N/A'}
+            </span>
+          </div>
+          <div class="user-status">
+            <span class="badge badge-premium">⭐ Premium</span>
+            ${user.email !== ADMIN_EMAIL ? `
+              <button class="btn-action btn-remove-premium" onclick="togglePremium('${user.email}')">
+                <i class="fas fa-times"></i> Kaldır
+              </button>
+            ` : '<span class="badge badge-premium">Admin</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function approveUser(email) {
+      if (confirm(`${email} adresine premium üyelik onaylansın mı?`)) {
+        const result = authService.approvePremium(email);
+        if (result.success) {
+          alert('Premium üyelik onaylandı!');
+          loadData();
+        } else {
+          alert(result.error);
+        }
+      }
+    }
+
+    function rejectUser(email) {
+      if (confirm(`${email} adresinin premium talebi reddedilsin mi?`)) {
+        const users = authService.getUsers();
+        const userIndex = users.findIndex(u => u.email === email);
+        if (userIndex !== -1) {
+          users[userIndex].premiumRequest = false;
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+          alert('Talep reddedildi.');
+          loadData();
+        }
+      }
+    }
+
+    function togglePremium(email) {
+      const users = authService.getUsers();
+      const user = users.find(u => u.email === email);
+      
+      if (user.premium || user.premiumApproved) {
+        if (confirm(`${email} adresinin premium üyeliği kaldırılsın mı?`)) {
+          authService.removePremium(email);
+          loadData();
+        }
+      } else {
+        if (confirm(`${email} adresine premium üyelik verilsin mi?`)) {
+          authService.approvePremium(email);
+          loadData();
+        }
+      }
     }
 
     // Load on page load
-    loadUsers();
+    loadData();
   </script>
 </body>
 </html>
