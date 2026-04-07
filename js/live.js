@@ -1,207 +1,112 @@
-// ===== Live Score Service =====
+// ===== Live Match Updates =====
+// Handles real-time match updates and notifications
 
-class LiveScoreService {
+class LiveUpdates {
   constructor() {
-    this.fixtures = new Map();
-    this.predictions = new Map();
     this.updateInterval = null;
-    this.listeners = [];
+    this.matchCache = new Map();
   }
 
-  // Start live updates
   start() {
-    this.updateLiveMatches();
+    // Update every 60 seconds
     this.updateInterval = setInterval(() => {
-      this.updateLiveMatches();
-    }, 30000); // 30 saniyede bir güncelle
+      this.checkLiveMatches();
+    }, 60000);
   }
 
-  // Stop live updates
   stop() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
-      this.updateInterval = null;
     }
   }
 
-  // Add listener for updates
-  addListener(callback) {
-    this.listeners.push(callback);
-  }
-
-  // Remove listener
-  removeListener(callback) {
-    this.listeners = this.listeners.filter(l => l !== callback);
-  }
-
-  // Notify all listeners
-  notifyListeners(data) {
-    this.listeners.forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error('Listener error:', error);
-      }
-    });
-  }
-
-  // Fetch and update live matches
-  async updateLiveMatches() {
+  async checkLiveMatches() {
     try {
-      const data = await apiService.getLiveMatches();
-      const liveFixtures = data.response || [];
-
-      const updates = [];
-
-      liveFixtures.forEach(fixture => {
-        const fixtureId = fixture.fixture.id;
-        const existing = this.fixtures.get(fixtureId);
-        
-        // Check if score changed
-        if (existing) {
-          const oldHome = existing.goals?.home;
-          const oldAway = existing.goals?.away;
-          const newHome = fixture.goals?.home;
-          const newAway = fixture.goals?.away;
-
-          if (oldHome !== newHome || oldAway !== newAway) {
-            updates.push({
-              type: 'score_change',
-              fixtureId,
-              oldScore: { home: oldHome, away: oldAway },
-              newScore: { home: newHome, away: newAway },
-              fixture
-            });
-
-            // Check prediction status
-            this.checkPredictionStatus(fixtureId, newHome, newAway);
+      const data = await apiService.getAllLiveMatches();
+      
+      if (data.response) {
+        data.response.forEach(match => {
+          const fixtureId = match.fixture.id;
+          const cached = this.matchCache.get(fixtureId);
+          
+          if (cached) {
+            // Check for goal
+            if (cached.goals.home !== match.goals.home || 
+                cached.goals.away !== match.goals.away) {
+              this.onGoal(match);
+            }
+            
+            // Check for status change
+            if (cached.fixture.status.short !== match.fixture.status.short) {
+              this.onStatusChange(match);
+            }
           }
-        }
-
-        this.fixtures.set(fixtureId, fixture);
-      });
-
-      if (updates.length > 0) {
-        this.notifyListeners({ type: 'updates', updates });
+          
+          this.matchCache.set(fixtureId, match);
+        });
       }
-
-      this.notifyListeners({ 
-        type: 'live_matches', 
-        fixtures: Array.from(this.fixtures.values()) 
-      });
-
     } catch (error) {
       console.error('Live update error:', error);
     }
   }
 
-  // Check if prediction is winning/losing
-  checkPredictionStatus(fixtureId, homeGoals, awayGoals) {
-    const prediction = this.predictions.get(fixtureId);
-    if (!prediction) return;
-
-    const { market, pick } = prediction;
-    let isWinning = false;
-
-    switch (market) {
-      case 'result':
-        if (pick === '1' && homeGoals > awayGoals) isWinning = true;
-        if (pick === 'X' && homeGoals === awayGoals) isWinning = true;
-        if (pick === '2' && homeGoals < awayGoals) isWinning = true;
-        break;
-      case 'ou':
-        const totalGoals = homeGoals + awayGoals;
-        if (pick === 'over' && totalGoals > 2.5) isWinning = true;
-        if (pick === 'under' && totalGoals <= 2.5) isWinning = true;
-        break;
-      case 'btts':
-        if (pick === 'yes' && homeGoals > 0 && awayGoals > 0) isWinning = true;
-        if (pick === 'no' && (homeGoals === 0 || awayGoals === 0)) isWinning = true;
-        break;
-    }
-
-    prediction.isWinning = isWinning;
-    prediction.status = isWinning ? 'winning' : 'losing';
-
-    this.notifyListeners({
-      type: 'prediction_status',
-      fixtureId,
-      status: isWinning ? 'winning' : 'losing',
-      prediction
-    });
-  }
-
-  // Set prediction for a fixture
-  setPrediction(fixtureId, prediction) {
-    this.predictions.set(fixtureId, {
-      ...prediction,
-      status: 'pending',
-      isWinning: null
-    });
-
-    // Check immediately if match is live
-    const fixture = this.fixtures.get(fixtureId);
-    if (fixture && fixture.goals) {
-      this.checkPredictionStatus(fixtureId, fixture.goals.home, fixture.goals.away);
+  onGoal(match) {
+    // Visual feedback for goal
+    const card = document.querySelector(`[data-fixture="${match.fixture.id}"]`);
+    if (card) {
+      card.classList.add('goal-scored');
+      setTimeout(() => card.classList.remove('goal-scored'), 3000);
     }
   }
 
-  // Get fixture status
-  getFixtureStatus(fixtureId) {
-    const fixture = this.fixtures.get(fixtureId);
-    if (!fixture) return null;
-
-    const status = fixture.fixture?.status?.short;
-    const elapsed = fixture.fixture?.status?.elapsed;
-    const goals = fixture.goals;
-
-    return {
-      status,
-      elapsed,
-      goals,
-      isLive: ['1H', '2H', 'HT', 'ET', 'P'].includes(status),
-      isFinished: ['FT', 'AET', 'PEN'].includes(status)
-    };
-  }
-
-  // Render live indicator
-  renderLiveIndicator(fixtureId) {
-    const prediction = this.predictions.get(fixtureId);
-    if (!prediction) return '';
-
-    const status = prediction.status;
-    if (status === 'winning') {
-      return '<div class="prediction-indicator winning">✓</div>';
-    } else if (status === 'losing') {
-      return '<div class="prediction-indicator losing">✗</div>';
-    }
-    return '<div class="prediction-indicator pending">○</div>';
-  }
-
-  // Format match time
-  formatMatchTime(fixture) {
-    const status = fixture.fixture?.status?.short;
-    const elapsed = fixture.fixture?.status?.elapsed;
-
-    if (['1H', '2H'].includes(status) && elapsed) {
-      return `${elapsed}'`;
-    }
-    if (status === 'HT') return 'HT';
-    if (status === 'FT') return 'Bitti';
+  onStatusChange(match) {
+    const status = match.fixture.status.short;
     
-    // Not started - show scheduled time
-    const date = new Date(fixture.fixture?.date);
-    return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    if (status === 'FT') {
+      // Match finished - check predictions
+      this.checkPredictionResult(match);
+    }
   }
 
-  // Get score display
-  getScoreDisplay(fixture) {
-    const status = this.getFixtureStatus(fixture.fixture?.id);
-    if (!status || !status.goals) return '- : -';
-    
-    return `${status.goals.home} - ${status.goals.away}`;
+  async checkPredictionResult(match) {
+    const analyses = couponService.getAnalyses();
+    if (!analyses) return;
+
+    const analysis = analyses.find(a => a.fixtureId === match.fixture.id);
+    if (!analysis) return;
+
+    const homeGoals = match.goals.home;
+    const awayGoals = match.goals.away;
+    let isWin = false;
+
+    // Check result
+    if (analysis.bestMarket.market === 'result') {
+      if (analysis.bestMarket.pick === '1' && homeGoals > awayGoals) isWin = true;
+      if (analysis.bestMarket.pick === 'X' && homeGoals === awayGoals) isWin = true;
+      if (analysis.bestMarket.pick === '2' && homeGoals < awayGoals) isWin = true;
+    }
+
+    // Check O/U
+    if (analysis.bestMarket.market === 'ou') {
+      const total = homeGoals + awayGoals;
+      if (analysis.bestMarket.pick === 'over25' && total > 2.5) isWin = true;
+      if (analysis.bestMarket.pick === 'under25' && total < 2.5) isWin = true;
+    }
+
+    // Check BTTS
+    if (analysis.bestMarket.market === 'btts') {
+      if (analysis.bestMarket.pick === 'yes' && homeGoals > 0 && awayGoals > 0) isWin = true;
+      if (analysis.bestMarket.pick === 'no' && (homeGoals === 0 || awayGoals === 0)) isWin = true;
+    }
+
+    if (isWin) {
+      couponService.addSuccessfulPrediction(analysis, {
+        homeGoals,
+        awayGoals
+      });
+    }
   }
 }
 
 // Create global instance
-const liveService = new LiveScoreService();
+const liveUpdates = new LiveUpdates();
