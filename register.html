@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TahminArena - Kayıt Ol</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title>TahminArena - Kayıt</title>
+  <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="auth-body">
@@ -15,8 +15,8 @@
       <span>TahminArena</span>
     </div>
     <nav class="auth-nav">
-      <a href="/">Giriş Yap</a>
-      <a href="/register.html" class="active">Kayıt Ol</a>
+      <a href="index.html">Giriş Yap</a>
+      <a href="register.html" class="active">Kayıt Ol</a>
     </nav>
   </header>
 
@@ -28,53 +28,52 @@
       <h2>Hesap Oluştur</h2>
       <p class="auth-sub">Ücretsiz hesap aç, analiz yapmaya hemen başla</p>
 
-      <form onsubmit="handleRegister(event)">
+      <form id="registerForm">
         <div class="form-group">
           <label><i class="fas fa-user"></i> Ad Soyad</label>
           <input type="text" id="regName" placeholder="Adınız Soyadınız" required>
         </div>
+        
         <div class="form-group">
-          <label><i class="fas fa-envelope"></i> E-posta Adresi</label>
+          <label><i class="fas fa-envelope"></i> E-posta</label>
           <input type="email" id="regEmail" placeholder="ornek@email.com" required>
         </div>
+        
         <div class="form-group">
           <label><i class="fas fa-lock"></i> Şifre</label>
           <div class="pass-wrap">
-            <input type="password" id="regPass" placeholder="En az 6 karakter" required>
+            <input type="password" id="regPass" placeholder="••••••" required>
             <span class="toggle-pass" onclick="togglePass('regPass', this)">
               <i class="fas fa-eye"></i>
             </span>
           </div>
         </div>
+
         <div class="form-group">
           <label><i class="fas fa-lock"></i> Şifre Tekrar</label>
           <div class="pass-wrap">
-            <input type="password" id="regPass2" placeholder="Şifrenizi tekrar girin" required>
+            <input type="password" id="regPass2" placeholder="••••••" required>
             <span class="toggle-pass" onclick="togglePass('regPass2', this)">
               <i class="fas fa-eye"></i>
             </span>
           </div>
         </div>
-        <div class="form-row">
-          <label class="check-label">
-            <input type="checkbox" required>
-            <a href="#" style="color: var(--accent)">Kullanım Şartları</a>'nı kabul ediyorum
-          </label>
-        </div>
-        <div class="error-msg" id="regError"></div>
-        <div class="success-msg" id="regSuccess"></div>
+
+        <p class="error-msg" id="regError"></p>
+
         <button type="submit" class="btn-primary">
           <i class="fas fa-user-plus"></i> Kayıt Ol
         </button>
       </form>
 
-      <p class="auth-footer">Zaten hesabın var mı? <a href="/">Giriş Yap</a></p>
+      <div class="auth-footer">
+        Zaten hesabınız var mı? <a href="index.html">Giriş yapın</a>
+      </div>
     </div>
   </main>
 
-  <script src="/js/config.js"></script>
-  <script src="/js/api.js"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
