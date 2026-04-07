@@ -306,13 +306,11 @@ class App {
     
     const isInCoupon = couponService.isInCoupon(fixtureId);
     
-    if (btn) {
-      btn.className = `add-to-coupon ${isInCoupon ? 'added' : ''}`;
-      btn.innerHTML = `
-        <i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>
-        ${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}
-      `;
-    }
+    btn.className = `add-to-coupon ${isInCoupon ? 'added' : ''}`;
+    btn.innerHTML = `
+      <i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>
+      ${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}
+    `;
 
     // Update coupon display
     if (typeof couponService !== 'undefined') {
@@ -356,7 +354,6 @@ class App {
       couponService.renderUserCoupon();
     }
   }
-
   // ===== AI ANALYSES =====
   
   async loadAIAnalyses() {
@@ -596,7 +593,6 @@ class App {
     }
   }
 }
-
 // ===== GLOBAL FUNCTIONS =====
 
 function handleLogin(e) {
@@ -711,6 +707,46 @@ function filterLive(filter) {
     container.innerHTML = `
       <div class="matches-header">
         <h3>Filtrelenmiş Maçlar (${filtered.length})</h3>
+      </div>
+      <div class="matches-grid">
+        ${filtered.map(match => app.renderMatchCard(match)).join('')}
+      </div>
+    `;
+  }
+}
+
+function filterByContinent(continent) {
+  // Update active button
+  document.querySelectorAll('.continent-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('onclick')?.includes(continent)) {
+      btn.classList.add('active');
+    }
+  });
+
+  // Filter matches by continent
+  let filtered = app.liveMatches;
+  
+  if (continent !== 'all') {
+    const continentCountries = {
+      'europe': ['England', 'Spain', 'Italy', 'Germany', 'France', 'Portugal', 'Netherlands', 'Belgium', 'Scotland', 'Turkey', 'Greece', 'Switzerland', 'Austria', 'Denmark', 'Sweden', 'Norway', 'Finland', 'Poland', 'Czech-Republic', 'Romania', 'Bulgaria', 'Serbia', 'Croatia', 'Ukraine', 'Russia', 'Ireland', 'Wales'],
+      'asia': ['Turkey', 'Japan', 'South-Korea', 'China', 'Saudi-Arabia', 'Qatar', 'UAE', 'Iran', 'Iraq', 'India', 'Indonesia', 'Thailand', 'Vietnam', 'Malaysia', 'Singapore', 'Uzbekistan', 'Jordan', 'Bahrain', 'Kuwait', 'Oman', 'Lebanon', 'Syria', 'Palestine', 'Yemen', 'Pakistan'],
+      'africa': ['Egypt', 'Morocco', 'Algeria', 'Tunisia', 'Libya', 'South-Africa', 'Nigeria', 'Ghana', 'Senegal', 'Cameroon', 'Ivory-Coast', 'Mali', 'Burkina-Faso', 'DR-Congo', 'Congo', 'Ethiopia', 'Kenya', 'Tanzania', 'Uganda', 'Angola', 'Zambia', 'Zimbabwe', 'Mozambique', 'Sudan', 'Rwanda'],
+      'southamerica': ['Argentina', 'Brazil', 'Chile', 'Uruguay', 'Paraguay', 'Bolivia', 'Peru', 'Colombia', 'Ecuador', 'Venezuela'],
+      'northamerica': ['USA', 'Canada', 'Mexico', 'Costa-Rica', 'Honduras', 'Guatemala', 'Panama', 'El-Salvador', 'Jamaica', 'Trinidad-and-Tobago', 'Haiti', 'Dominican-Republic', 'Nicaragua'],
+      'oceania': ['Australia', 'New-Zealand', 'Fiji', 'Papua-New-Guinea', 'Solomon-Islands', 'Tahiti', 'New-Caledonia']
+    };
+    
+    const countries = continentCountries[continent] || [];
+    filtered = app.liveMatches.filter(m => countries.includes(m.league?.country));
+  }
+
+  // Re-render
+  const container = document.getElementById('liveMatches');
+  if (container) {
+    container.innerHTML = `
+      <div class="matches-header">
+        <h3>${continent === 'all' ? 'Tüm Maçlar' : continent.charAt(0).toUpperCase() + continent.slice(1)} (${filtered.length})</h3>
       </div>
       <div class="matches-grid">
         ${filtered.map(match => app.renderMatchCard(match)).join('')}
