@@ -393,7 +393,7 @@ class App {
 
     try {
       // Analyze matches (limit to 15 to save API calls)
-      const matchesToAnalyze = analyzableMatches.slice(0, 15);
+      const matchesToAnalyze = analyzableMatches;
       this.analyses = await aiEngine.analyzeFixtures(matchesToAnalyze);
       
       // Save analyses
