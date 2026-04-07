@@ -67,15 +67,27 @@ class ApiService {
 
   // ===== FIXTURES =====
   
-  // Get ALL live matches
+  // Get ALL live matches from all leagues
   async getAllLiveMatches() {
+    // Canlı tüm maçları getir (tüm liglerden)
     return this.makeRequest('/fixtures', { live: 'all' });
+  }
+
+  // Get live matches by league
+  async getLiveMatchesByLeague(leagueId) {
+    return this.makeRequest('/fixtures', { live: 'all', league: leagueId });
   }
 
   // Get today's matches
   async getTodayMatches() {
     const today = new Date().toISOString().split('T')[0];
     return this.makeRequest('/fixtures', { date: today });
+  }
+
+  // Get today's matches by league
+  async getTodayMatchesByLeague(leagueId) {
+    const today = new Date().toISOString().split('T')[0];
+    return this.makeRequest('/fixtures', { date: today, league: leagueId });
   }
 
   // Get upcoming matches (next 3 days)
