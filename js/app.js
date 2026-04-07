@@ -1,5 +1,10 @@
 // ===== Main Application v3 - Complete System =====
 
+// Ensure couponService is available globally
+if (typeof couponService === 'undefined' && typeof CouponService !== 'undefined') {
+  window.couponService = new CouponService();
+}
+
 class App {
   constructor() {
     this.liveMatches = [];
@@ -9,6 +14,9 @@ class App {
   }
 
   async init() {
+    // Wait for all services to be available
+    await this.waitForServices();
+    
     // Check auth for dashboard
     if (document.getElementById('dashUserName')) {
       if (!authService.requireAuth()) return;
@@ -16,6 +24,15 @@ class App {
     }
     
     this.setupEventListeners();
+  }
+  
+  async waitForServices() {
+    // Wait up to 5 seconds for couponService to be available
+    let attempts = 0;
+    while (typeof couponService === 'undefined' && attempts < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
   }
 
   async initDashboard() {
@@ -38,7 +55,9 @@ class App {
     await this.loadAIAnalyses();
     
     // Load user coupon
-    couponService.renderUserCoupon();
+    if (typeof couponService !== 'undefined') {
+      couponService.renderUserCoupon();
+    }
     
     // Load premium coupons if applicable
     if (authService.isPremium()) {
@@ -210,9 +229,14 @@ class App {
   }
 
   renderMatchCard(match) {
+    // Safety check for match data
+    if (!match || !match.fixture) {
+      return '';
+    }
+    
     const isLive = ['1H', '2H', 'HT', 'ET'].includes(match.fixture?.status?.short);
     const status = match.fixture?.status;
-    const isInCoupon = couponService.isInCoupon(match.fixture.id);
+    const isInCoupon = typeof couponService !== 'undefined' ? couponService.isInCoupon(match.fixture.id) : false;
     const matchTime = new Date(match.fixture?.date).toLocaleTimeString('tr-TR', {
       hour: '2-digit', 
       minute: '2-digit'
@@ -260,8 +284,8 @@ class App {
   }
 
   toggleCouponMatch(fixtureId) {
-    const match = this.liveMatches.find(m => m.fixture.id === fixtureId);
-    if (!match) return;
+    const match = this.liveMatches.find(m => m && m.fixture && m.fixture.id === fixtureId);
+    if (!match || typeof couponService === 'undefined') return;
 
     if (couponService.isInCoupon(fixtureId)) {
       couponService.removeFromCoupon(fixtureId);
@@ -278,6 +302,8 @@ class App {
 
     // Update button
     const btn = document.getElementById(`btn-${fixtureId}`);
+    if (!btn || typeof couponService === 'undefined') return;
+    
     const isInCoupon = couponService.isInCoupon(fixtureId);
     
     if (btn) {
@@ -289,10 +315,14 @@ class App {
     }
 
     // Update coupon display
-    couponService.renderUserCoupon();
+    if (typeof couponService !== 'undefined') {
+      couponService.renderUserCoupon();
+    }
   }
 
   addToCouponWithPrediction(fixtureId) {
+    if (typeof couponService === 'undefined') return;
+    
     const analysis = this.analyses.find(a => a.fixtureId === fixtureId);
     if (!analysis) return;
 
@@ -322,12 +352,16 @@ class App {
       `;
     }
 
-    couponService.renderUserCoupon();
+    if (typeof couponService !== 'undefined') {
+      couponService.renderUserCoupon();
+    }
   }
 
   // ===== AI ANALYSES =====
   
   async loadAIAnalyses() {
+    if (typeof couponService === 'undefined') return;
+    
     // Check cached analyses
     const cached = couponService.getAnalyses();
     if (cached) {
@@ -366,7 +400,9 @@ class App {
       this.analyses = await aiEngine.analyzeFixtures(matchesToAnalyze);
       
       // Save analyses
-      couponService.saveAnalyses(this.analyses);
+      if (typeof couponService !== 'undefined') {
+        couponService.saveAnalyses(this.analyses);
+      }
       
       // Render
       this.renderAIAnalyses();
@@ -390,6 +426,8 @@ class App {
   }
 
   renderAIAnalyses() {
+    if (typeof couponService === 'undefined') return;
+    
     const isPremium = authService.isPremium();
     couponService.renderAICards(this.analyses, isPremium);
   }
@@ -397,7 +435,7 @@ class App {
   // ===== COUPONS =====
   
   generateDailyCoupon() {
-    if (this.analyses.length === 0) return;
+    if (this.analyses.length === 0 || typeof couponService === 'undefined') return;
 
     const dailyCoupon = aiEngine.generatePremiumCoupons(this.analyses);
     if (dailyCoupon && dailyCoupon.coupons.length > 0) {
@@ -450,6 +488,8 @@ class App {
   }
 
   addDailyToCoupon() {
+    if (typeof couponService === 'undefined') return;
+    
     const coupons = couponService.getPremiumCoupons();
     if (!coupons || !coupons.coupons || coupons.coupons.length === 0) return;
 
@@ -476,6 +516,8 @@ class App {
   // ===== PREMIUM COUPONS =====
   
   async generatePremiumCoupons() {
+    if (typeof couponService === 'undefined') return;
+    
     // Check cached
     const cached = couponService.getPremiumCoupons();
     if (cached) {
@@ -493,6 +535,8 @@ class App {
   }
 
   addPremiumToCoupon(couponIndex) {
+    if (typeof couponService === 'undefined') return;
+    
     const coupons = couponService.getPremiumCoupons();
     if (!coupons || !coupons.coupons || !coupons.coupons[couponIndex]) return;
 
@@ -526,7 +570,9 @@ class App {
 
     // Check for finished matches every 5 minutes
     setInterval(() => {
-      couponService.checkSuccessfulPredictions(this.analyses);
+      if (typeof couponService !== 'undefined') {
+        couponService.checkSuccessfulPredictions(this.analyses);
+      }
     }, 300000);
   }
 
@@ -545,7 +591,9 @@ class App {
   }
 
   renderUserCoupon() {
-    couponService.renderUserCoupon();
+    if (typeof couponService !== 'undefined') {
+      couponService.renderUserCoupon();
+    }
   }
 }
 
@@ -615,19 +663,25 @@ function showSection(section) {
 
   // Load section-specific data
   if (section === 'successful') {
-    couponService.renderSuccessfulPredictions();
+    if (typeof couponService !== 'undefined') {
+      couponService.renderSuccessfulPredictions();
+    }
   } else if (section === 'premium' && authService.isPremium()) {
     app.generatePremiumCoupons();
   }
 }
 
 function clearMyCoupon() {
-  couponService.clearCoupon();
+  if (typeof couponService !== 'undefined') {
+    couponService.clearCoupon();
+  }
   app.renderUserCoupon();
 }
 
 function updateCouponWin() {
   const amount = parseFloat(document.getElementById('couponAmount')?.value) || 100;
+  if (typeof couponService === 'undefined') return;
+  
   const stats = couponService.getCouponStats();
   const win = (amount * parseFloat(stats.totalOdds)).toFixed(2);
   
