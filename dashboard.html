@@ -102,6 +102,18 @@
         <button class="filter-btn" onclick="filterLive('2H')">İkinci Yarı</button>
         <button class="filter-btn" onclick="filterLive('HT')">Devre Arası</button>
       </div>
+      
+      <!-- Kıta Filtreleri -->
+      <div class="continent-filters" style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="filter-btn continent-btn active" onclick="filterByContinent('all')">🌍 Tüm Kıtalar</button>
+        <button class="filter-btn continent-btn" onclick="filterByContinent('europe')">🇪🇺 Avrupa</button>
+        <button class="filter-btn continent-btn" onclick="filterByContinent('asia')">🇯🇵 Asya</button>
+        <button class="filter-btn continent-btn" onclick="filterByContinent('africa')">🇪🇬 Afrika</button>
+        <button class="filter-btn continent-btn" onclick="filterByContinent('southamerica')">🇧🇷 Güney Amerika</button>
+        <button class="filter-btn continent-btn" onclick="filterByContinent('northamerica')">🇺🇸 Kuzey Amerika</button>
+        <button class="filter-btn continent-btn" onclick="filterByContinent('oceania')">🇦🇺 Okyanusya</button>
+      </div>
+      
       <div class="matches-list" id="liveMatches">
         <div class="loading-state">
           <i class="fas fa-spinner fa-spin"></i>
