@@ -22,18 +22,9 @@ class AuthService {
   }
 
   isAdmin() {
-    // Admin account - hardcoded password
-    if (email === ADMIN_EMAIL && password === 'Selcuk123)))') {
-      const adminUser = {
-        name: 'Admin',
-        email: ADMIN_EMAIL,
-        premium: true,
-        premiumApproved: true,
-        createdAt: new Date().toISOString()
-      };
-      this.setSession(adminUser);
-      return { success: true, user: adminUser };
-      
+    return this.session?.email === ADMIN_EMAIL;
+  }
+
   login(email, password) {
     // Demo account
     if (email === 'demo@tahminarena.com' && password === 'demo123') {
