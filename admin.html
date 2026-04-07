@@ -262,3 +262,212 @@
       <div class="admin-card">
         <h3><i class="fas fa-users"></i> Tüm Kullanıcılar</h3>
         <div class="user
+                  <div class="user-list" id="allUsersList">
+          <div class="loading-state">Yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium Users Tab -->
+    <div class="tab-content" id="tab-premium">
+      <div class="admin-card">
+        <h3><i class="fas fa-crown"></i> Premium Üyeler</h3>
+        <div class="user-list" id="premiumList">
+          <div class="loading-state">Yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Check admin access
+    if (!authService.isAdmin()) {
+      window.location.href = 'dashboard.html';
+    }
+
+    // Load admin info
+    const user = authService.getCurrentUser();
+    document.getElementById('adminName').textContent = user?.name || 'Admin';
+
+    // Tab switching
+    function showTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      loadData();
+    }
+
+    // Load all data
+    function loadData() {
+      const users = authService.getUsers();
+      const pending = authService.getPendingPremiumRequests();
+      const premium = users.filter(u => u.premium || u.premiumApproved);
+      
+      // Update stats
+      document.getElementById('totalUsers').textContent = users.length;
+      document.getElementById('premiumUsers').textContent = premium.length;
+      document.getElementById('freeUsers').textContent = users.length - premium.length;
+      document.getElementById('pendingRequests').textContent = pending.length;
+      
+      // Update API usage
+      const apiData = JSON.parse(localStorage.getItem(STORAGE_KEYS.API_REQUESTS) || '{"count": 0}');
+      document.getElementById('apiRequests').textContent = apiData.count.toLocaleString();
+      const usagePercent = (apiData.count / 75000) * 100;
+      document.getElementById('apiUsageBar').style.width = `${Math.min(100, usagePercent)}%`;
+
+      // Load lists
+      loadPendingList(pending);
+      loadAllUsersList(users);
+      loadPremiumList(premium);
+    }
+
+    function loadPendingList(pending) {
+      const container = document.getElementById('pendingList');
+      
+      if (pending.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-check-circle" style="color: var(--green);"></i>
+            <p>Bekleyen premium talebi yok.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pending.map(user => `
+        <div class="user-item" style="border-left: 3px solid var(--blue);">
+          <div class="user-info">
+            <span class="user-name">${user.name}</span>
+            <span class="user-email">${user.email}</span>
+            <span class="user-meta">
+              Kayıt: ${new Date(user.createdAt).toLocaleDateString('tr-TR')} | 
+              Talep: ${new Date(user.premiumRequestDate).toLocaleDateString('tr-TR')}
+            </span>
+          </div>
+          <div class="user-status">
+            <span class="badge badge-pending">⏳ Onay Bekliyor</span>
+            <button class="btn-action btn-approve" onclick="approveUser('${user.email}')">
+              <i class="fas fa-check"></i> Onayla
+            </button>
+            <button class="btn-action btn-reject" onclick="rejectUser('${user.email}')">
+              <i class="fas fa-times"></i> Reddet
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function loadAllUsersList(users) {
+      const container = document.getElementById('allUsersList');
+      
+      if (users.length === 0) {
+        container.innerHTML = '<div class="empty-state">Henüz kayıtlı kullanıcı yok.</div>';
+        return;
+      }
+
+      container.innerHTML = users.map(user => `
+        <div class="user-item">
+          <div class="user-info">
+            <span class="user-name">${user.name}</span>
+            <span class="user-email">${user.email}</span>
+            <span class="user-meta">Kayıt: ${new Date(user.createdAt).toLocaleDateString('tr-TR')}</span>
+          </div>
+          <div class="user-status">
+            <span class="badge ${user.premium || user.premiumApproved ? 'badge-premium' : 'badge-free'}">
+              ${user.premium || user.premiumApproved ? '⭐ Premium' : 'Ücretsiz'}
+            </span>
+            ${user.email !== ADMIN_EMAIL ? `
+              <button 
+                class="btn-action ${user.premium || user.premiumApproved ? 'btn-remove-premium' : 'btn-make-premium'}"
+                onclick="togglePremium('${user.email}')"
+              >
+                ${user.premium || user.premiumApproved ? 'Premium Kaldır' : 'Premium Yap'}
+              </button>
+            ` : '<span class="badge badge-premium">Admin</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function loadPremiumList(premium) {
+      const container = document.getElementById('premiumList');
+      
+      if (premium.length === 0) {
+        container.innerHTML = '<div class="empty-state">Henüz premium üye yok.</div>';
+        return;
+      }
+
+      container.innerHTML = premium.map(user => `
+        <div class="user-item" style="border-left: 3px solid var(--accent);">
+          <div class="user-info">
+            <span class="user-name">${user.name}</span>
+            <span class="user-email">${user.email}</span>
+            <span class="user-meta">
+              Onay: ${user.premiumApprovedDate ? new Date(user.premiumApprovedDate).toLocaleDateString('tr-TR') : 'N/A'}
+            </span>
+          </div>
+          <div class="user-status">
+            <span class="badge badge-premium">⭐ Premium</span>
+            ${user.email !== ADMIN_EMAIL ? `
+              <button class="btn-action btn-remove-premium" onclick="togglePremium('${user.email}')">
+                <i class="fas fa-times"></i> Kaldır
+              </button>
+            ` : '<span class="badge badge-premium">Admin</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function approveUser(email) {
+      if (confirm(`${email} adresine premium üyelik onaylansın mı?`)) {
+        const result = authService.approvePremium(email);
+        if (result.success) {
+          alert('Premium üyelik onaylandı!');
+          loadData();
+        } else {
+          alert(result.error);
+        }
+      }
+    }
+
+    function rejectUser(email) {
+      if (confirm(`${email} adresinin premium talebi reddedilsin mi?`)) {
+        const users = authService.getUsers();
+        const userIndex = users.findIndex(u => u.email === email);
+        if (userIndex !== -1) {
+          users[userIndex].premiumRequest = false;
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+          alert('Talep reddedildi.');
+          loadData();
+        }
+      }
+    }
+
+    function togglePremium(email) {
+      const users = authService.getUsers();
+      const user = users.find(u => u.email === email);
+      
+      if (user.premium || user.premiumApproved) {
+        if (confirm(`${email} adresinin premium üyeliği kaldırılsın mı?`)) {
+          authService.removePremium(email);
+          loadData();
+        }
+      } else {
+        if (confirm(`${email} adresine premium üyelik verilsin mi?`)) {
+          authService.approvePremium(email);
+          loadData();
+        }
+      }
+    }
+
+    // Load on page load
+    loadData();
+  </script>
+</body>
+</html>
+
