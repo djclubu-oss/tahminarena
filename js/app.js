@@ -7,6 +7,7 @@ if (typeof couponService === 'undefined' && typeof CouponService !== 'undefined'
 class App {
   constructor() {
     this.liveMatches = [];
+    this.todayMatches = [];
     this.analyses = [];
     this.isAnalyzing = false;
     this.init();
@@ -36,6 +37,7 @@ class App {
     this.updatePremiumUI();
     this.startClock();
     await this.loadLiveMatches();
+    await this.loadTodayMatches();
     await this.loadAIAnalyses();
     if (typeof couponService !== 'undefined') {
       couponService.renderUserCoupon();
@@ -117,6 +119,7 @@ class App {
     }
   }
 
+  // CANLI MAÇLAR - Sadece gerçek canlı maçlar
   async loadLiveMatches() {
     const container = document.getElementById('liveMatches');
     if (!container) return;
@@ -127,12 +130,10 @@ class App {
       </div>
     `;
     try {
-      const data = await apiService.getMatches();
+      const data = await apiService.getLiveMatches();
       this.liveMatches = data.matches || [];
       const liveCountEl = document.getElementById('liveCount');
-      const todayCountEl = document.getElementById('todayCount');
-      if (liveCountEl) liveCountEl.textContent = data.isLive ? data.count : 0;
-      if (todayCountEl) todayCountEl.textContent = data.isLive ? 0 : data.count;
+      if (liveCountEl) liveCountEl.textContent = data.count;
       const apiInfo = document.getElementById('apiInfo');
       if (apiInfo) {
         apiInfo.innerHTML = `<span class="requests">${apiService.getRequestCount().toLocaleString()} / 75,000</span>`;
@@ -159,11 +160,22 @@ class App {
     }
   }
 
+  // BUGÜNKÜ MAÇLAR - YZ Tahminleri için
+  async loadTodayMatches() {
+    try {
+      const data = await apiService.getMatches();
+      this.todayMatches = data.matches || [];
+      const todayCountEl = document.getElementById('todayCount');
+      if (todayCountEl) todayCountEl.textContent = this.todayMatches.length;
+    } catch (error) {
+      console.error('Load today matches error:', error);
+    }
+  }
+
   renderLiveMatches() {
     const container = document.getElementById('liveMatches');
     if (!container) return;
-    const isLive = this.liveMatches.some(m => ['1H', '2H', 'HT', 'ET'].includes(m.fixture?.status?.short));
-    const title = isLive ? '🔴 Canlı Maçlar' : '📅 Programdaki Maçlar';
+    const title = '🔴 Canlı Maçlar';
     container.innerHTML = `
       <div class="matches-header">
         <h3>${title} (${this.liveMatches.length})</h3>
@@ -270,22 +282,24 @@ class App {
     }
   }
 
+  // YZ TAHMİNLERİ - Bugünün tüm maçları, 24 saatte bir sıfırlanır
   async loadAIAnalyses() {
     if (typeof couponService === 'undefined') return;
+    
+    // Cache kontrolü - 24 saatte bir sıfırlanır
     const cached = couponService.getAnalyses();
     if (cached) {
       this.analyses = cached;
       this.renderAIAnalyses();
       return;
     }
-    if (this.liveMatches.length === 0) return;
-    const today = new Date().toISOString().split('T')[0];
-    const analyzableMatches = this.liveMatches.filter(m => {
-      const matchDate = new Date(m.fixture?.date).toISOString().split('T')[0];
-      const status = m.fixture?.status?.short;
-      return matchDate === today && ['NS', '1H', '2H', 'HT', 'ET'].includes(status);
-    });
-    if (analyzableMatches.length === 0) {
+
+    // Bugünün maçlarını kullan
+    if (this.todayMatches.length === 0) {
+      await this.loadTodayMatches();
+    }
+
+    if (this.todayMatches.length === 0) {
       const container = document.getElementById('aiCards');
       if (container) {
         container.innerHTML = `
@@ -298,6 +312,28 @@ class App {
       }
       return;
     }
+
+    // Sadece bugün oynanacak maçları analiz et
+    const today = new Date().toISOString().split('T')[0];
+    const analyzableMatches = this.todayMatches.filter(m => {
+      const matchDate = new Date(m.fixture?.date).toISOString().split('T')[0];
+      const status = m.fixture?.status?.short;
+      return matchDate === today && ['NS', '1H', '2H', 'HT', 'ET'].includes(status);
+    });
+
+    if (analyzableMatches.length === 0) {
+      const container = document.getElementById('aiCards');
+      if (container) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-calendar"></i>
+            <p>Bugün için analiz edilecek maç bulunmuyor.</p>
+          </div>
+        `;
+      }
+      return;
+    }
+
     const container = document.getElementById('aiCards');
     if (container) {
       container.innerHTML = `
@@ -308,15 +344,20 @@ class App {
         </div>
       `;
     }
+
     this.isAnalyzing = true;
+
     try {
       const matchesToAnalyze = analyzableMatches;
       this.analyses = await aiEngine.analyzeFixtures(matchesToAnalyze);
+      
       if (typeof couponService !== 'undefined') {
         couponService.saveAnalyses(this.analyses);
       }
+      
       this.renderAIAnalyses();
       this.generateDailyCoupon();
+
     } catch (error) {
       console.error('AI Analysis error:', error);
       if (container) {
@@ -328,6 +369,7 @@ class App {
         `;
       }
     }
+
     this.isAnalyzing = false;
   }
 
@@ -445,9 +487,25 @@ class App {
   }
 
   startAutoRefresh() {
+    // Canlı maçları her 60 saniyede bir yenile
     setInterval(() => {
       this.loadLiveMatches();
     }, 60000);
+
+    // 24 saatte bir tüm verileri sıfırla ve yenile
+    setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        // Cache'i temizle
+        localStorage.removeItem(STORAGE_KEYS.AI_ANALYSES);
+        localStorage.removeItem(STORAGE_KEYS.PREMIUM_COUPONS);
+        // Verileri yeniden yükle
+        this.loadTodayMatches();
+        this.loadAIAnalyses();
+      }
+    }, 60000); // Her dakika kontrol et
+
+    // Biten maçları kontrol et
     setInterval(() => {
       if (typeof couponService !== 'undefined') {
         couponService.checkSuccessfulPredictions(this.analyses);
@@ -455,162 +513,4 @@ class App {
     }, 300000);
   }
 
-  startClock() {
-    const clockEl = document.getElementById('clock');
-    if (!clockEl) return;
-    const update = () => {
-      clockEl.textContent = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    };
-    update();
-    setInterval(update, 1000);
-  }
-
-  renderUserCoupon() {
-    if (typeof couponService !== 'undefined') {
-      couponService.renderUserCoupon();
-    }
-  }
-}
-
-function handleLogin(e) {
-  e.preventDefault();
-  app.handleLogin();
-}
-
-function handleRegister(e) {
-  e.preventDefault();
-  app.handleRegister();
-}
-
-function logout() {
-  authService.logout();
-  window.location.href = './index.html';
-}
-
-function togglePass(id, el) {
-  const input = document.getElementById(id);
-  if (input.type === 'password') {
-    input.type = 'text';
-    el.innerHTML = '<i class="fas fa-eye-slash"></i>';
-  } else {
-    input.type = 'password';
-    el.innerHTML = '<i class="fas fa-eye"></i>';
-  }
-}
-
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-}
-
-function showSection(section) {
-  ['live', 'ai', 'coupon', 'my-coupon', 'successful', 'premium'].forEach(s => {
-    const el = document.getElementById(`sec-${s}`);
-    if (el) el.classList.add('hidden');
-  });
-  const selectedEl = document.getElementById(`sec-${section}`);
-  if (selectedEl) selectedEl.classList.remove('hidden');
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.remove('active');
-    if (item.getAttribute('onclick')?.includes(section)) {
-      item.classList.add('active');
-    }
-  });
-  const titles = {
-    live: 'Canlı Maçlar',
-    ai: 'YZ Tahminleri',
-    coupon: 'Günlük Kupon',
-    'my-coupon': 'Oynadığım Kupon',
-    successful: 'Tutan Analizler',
-    premium: 'Premium Kuponlar'
-  };
-  const titleEl = document.getElementById('sectionTitle');
-  if (titleEl) titleEl.textContent = titles[section] || '';
-  if (section === 'successful') {
-    if (typeof couponService !== 'undefined') {
-      couponService.renderSuccessfulPredictions();
-    }
-  } else if (section === 'premium' && authService.isPremium()) {
-    app.generatePremiumCoupons();
-  }
-}
-
-function clearMyCoupon() {
-  if (typeof couponService !== 'undefined') {
-    couponService.clearCoupon();
-  }
-  app.renderUserCoupon();
-}
-
-function updateCouponWin() {
-  const amount = parseFloat(document.getElementById('couponAmount')?.value) || 100;
-  if (typeof couponService === 'undefined') return;
-  const stats = couponService.getCouponStats();
-  const win = (amount * parseFloat(stats.totalOdds)).toFixed(2);
-  const winEl = document.getElementById('myCouponWin');
-  if (winEl) winEl.textContent = win + '₺';
-}
-
-function filterLive(filter) {
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.getAttribute('onclick')?.includes(filter)) {
-      btn.classList.add('active');
-    }
-  });
-  let filtered = app.liveMatches;
-  if (filter !== 'all') {
-    filtered = app.liveMatches.filter(m => m.fixture?.status?.short === filter);
-  }
-  const container = document.getElementById('liveMatches');
-  if (container) {
-    container.innerHTML = `
-      <div class="matches-header">
-        <h3>Filtrelenmiş Maçlar (${filtered.length})</h3>
-      </div>
-      <div class="matches-grid">
-        ${filtered.map(match => app.renderMatchCard(match)).join('')}
-      </div>
-    `;
-  }
-}
-
-function filterByContinent(continent) {
-  document.querySelectorAll('.continent-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.getAttribute('onclick')?.includes(continent)) {
-      btn.classList.add('active');
-    }
-  });
-  let filtered = app.liveMatches;
-  if (continent !== 'all') {
-    const continentCountries = {
-      'europe': ['England', 'Spain', 'Italy', 'Germany', 'France', 'Portugal', 'Netherlands', 'Belgium', 'Scotland', 'Turkey', 'Greece', 'Switzerland', 'Austria', 'Denmark', 'Sweden', 'Norway', 'Finland', 'Poland', 'Czech-Republic', 'Romania', 'Bulgaria', 'Serbia', 'Croatia', 'Ukraine', 'Russia', 'Ireland', 'Wales'],
-      'asia': ['Turkey', 'Japan', 'South-Korea', 'China', 'Saudi-Arabia', 'Qatar', 'UAE', 'Iran', 'Iraq', 'India', 'Indonesia', 'Thailand', 'Vietnam', 'Malaysia', 'Singapore', 'Uzbekistan', 'Jordan', 'Bahrain', 'Kuwait', 'Oman', 'Lebanon', 'Syria', 'Palestine', 'Yemen', 'Pakistan'],
-      'africa': ['Egypt', 'Morocco', 'Algeria', 'Tunisia', 'Libya', 'South-Africa', 'Nigeria', 'Ghana', 'Senegal', 'Cameroon', 'Ivory-Coast', 'Mali', 'Burkina-Faso', 'DR-Congo', 'Congo', 'Ethiopia', 'Kenya', 'Tanzania', 'Uganda', 'Angola', 'Zambia', 'Zimbabwe', 'Mozambique', 'Sudan', 'Rwanda'],
-      'southamerica': ['Argentina', 'Brazil', 'Chile', 'Uruguay', 'Paraguay', 'Bolivia', 'Peru', 'Colombia', 'Ecuador', 'Venezuela'],
-      'northamerica': ['USA', 'Canada', 'Mexico', 'Costa-Rica', 'Honduras', 'Guatemala', 'Panama', 'El-Salvador', 'Jamaica', 'Trinidad-and-Tobago', 'Haiti', 'Dominican-Republic', 'Nicaragua'],
-      'oceania': ['Australia', 'New-Zealand', 'Fiji', 'Papua-New-Guinea', 'Solomon-Islands', 'Tahiti', 'New-Caledonia']
-    };
-    const countries = continentCountries[continent] || [];
-    filtered = app.liveMatches.filter(m => countries.includes(m.league?.country));
-  }
-  const container = document.getElementById('liveMatches');
-  if (container) {
-    container.innerHTML = `
-      <div class="matches-header">
-        <h3>${continent === 'all' ? 'Tüm Maçlar' : continent.charAt(0).toUpperCase() + continent.slice(1)} (${filtered.length})</h3>
-      </div>
-      <div class="matches-grid">
-        ${filtered.map(match => app.renderMatchCard(match)).join('')}
-      </div>
-    `;
-  }
-}
-
-function showPremiumModal() {
-  alert('Premium üyelik için: djclubu@tahminarena.com adresine e-posta gönderin.');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  window.app = new App();
-});
+  startClock
