@@ -1,7 +1,4 @@
-// ai.js BAŞINA EKLEYİN - Hata ayıklama için
-console.log('AI Engine yüklendi');
-console.log('apiService var mı?', typeof apiService);
-console.log('apiService.getFixtures var mı?', typeof apiService?.getFixtures);// ai.js - Mevcut apiService ile çalışan AI analiz motoru
+// ai.js - Direkt API çağrısı ile
 
 class AIAnalysisEngine {
     constructor() {
@@ -10,6 +7,16 @@ class AIAnalysisEngine {
         this.allAnalyses = [];
         this.winningPredictions = [];
         this.visibleMatchCount = 2;
+        
+        // API Config - mevcut api.js'den alındı
+        this.apiConfig = {
+            baseUrl: 'https://v3.football.api-sports.io',
+            headers: {
+                'x-rapidapi-host': 'v3.football.api-sports.io',
+                'x-rapidapi-key': 'e8287b49fa0bb657f2b4582bb13a496e'
+            }
+        };
+        
         this.init();
     }
 
@@ -17,6 +24,7 @@ class AIAnalysisEngine {
         this.checkUserStatus();
         this.loadWinningPredictions();
         this.startResultChecker();
+        console.log('AI Engine hazır');
     }
 
     checkUserStatus() {
@@ -27,12 +35,16 @@ class AIAnalysisEngine {
             this.visibleMatchCount = 999;
             document.body?.classList.add('premium-user');
         }
+        console.log('Kullanıcı durumu:', this.isPremium ? 'Premium' : 'Normal');
     }
 
-    // GÜNÜN MAÇLARINI API'DEN ÇEK VE ANALİZ ET
+    // DİREKT API ÇAĞRISI
     async analyzeAllDailyMatches() {
         const container = document.getElementById('ai-predictions');
-        if (!container) return;
+        if (!container) {
+            console.error('Container bulunamadı!');
+            return;
+        }
         
         container.innerHTML = `
             <div class="loading-state">
@@ -42,9 +54,23 @@ class AIAnalysisEngine {
         `;
         
         try {
-            // MEVCUT apiService'i KULLAN
             const today = new Date().toISOString().split('T')[0];
-            const data = await apiService.getFixtures(today);
+            console.log('API çağrısı:', `${this.apiConfig.baseUrl}/fixtures?date=${today}`);
+            
+            const response = await fetch(`${this.apiConfig.baseUrl}/fixtures?date=${today}`, {
+                method: 'GET',
+                headers: this.apiConfig.headers
+            });
+            
+            console.log('API yanıt kodu:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('API yanıtı:', data);
+            
             const fixtures = data.response || [];
             
             if (fixtures.length === 0) {
@@ -75,7 +101,7 @@ class AIAnalysisEngine {
                 this.renderSinglePrediction(analysis);
             }
             
-            // Blur maçları göster (sadece isim)
+            // Blur maçları göster
             for (let i = 0; i < blurredFixtures.length; i++) {
                 const fixture = blurredFixtures[i];
                 const analysis = await this.analyzeMatchReal(fixture);
@@ -88,12 +114,12 @@ class AIAnalysisEngine {
             this.updateStats();
             
         } catch (error) {
-            console.error('API Hatası:', error);
+            console.error('HATA:', error);
             container.innerHTML = `
                 <div class="empty-state error">
                     <i class="fas fa-exclamation-circle"></i>
-                    <p>API'den veri çekilemedi.</p>
-                    <small>${error.message}</small>
+                    <p>API Hatası: ${error.message}</p>
+                    <small>Hata detayı için F12 (Console) açın</small>
                     <button class="btn-retry" onclick="aiEngine.analyzeAllDailyMatches()" style="margin-top: 16px; padding: 10px 24px; background: var(--accent); color: #000; border: none; border-radius: 8px; cursor: pointer;">
                         <i class="fas fa-redo"></i> Yeniden Dene
                     </button>
@@ -102,37 +128,32 @@ class AIAnalysisEngine {
         }
     }
 
-    // GERÇEK API VERİLERİYLE ANALİZ - Mevcut apiService kullanılıyor
+    // DİREKT API ÇAĞRILARI İLE ANALİZ
     async analyzeMatchReal(fixture) {
         const { teams, league, fixture: fixtureData } = fixture;
         
         try {
-            // Tüm verileri paralel çek - mevcut apiService metodları
+            // Paralel API çağrıları
             const [
                 homeStats,
                 awayStats,
                 homeLastMatches,
                 awayLastMatches,
                 h2h,
-                homeInjuries,
-                awayInjuries,
                 standings
             ] = await Promise.all([
-                apiService.getTeamStatistics(teams.home.id, league.id).catch(() => ({response: null})),
-                apiService.getTeamStatistics(teams.away.id, league.id).catch(() => ({response: null})),
-                apiService.getTeamLastMatches(teams.home.id, 10).catch(() => ({response: []})),
-                apiService.getTeamLastMatches(teams.away.id, 10).catch(() => ({response: []})),
-                apiService.getHeadToHead(teams.home.id, teams.away.id).catch(() => ({response: []})),
-                apiService.getInjuries(teams.home.id).catch(() => ({response: []})),
-                apiService.getInjuries(teams.away.id).catch(() => ({response: []})),
-                apiService.getStandings(league.id).catch(() => ({response: []}))
+                this.fetchAPI(`/teams/statistics?team=${teams.home.id}&league=${league.id}&season=2023`).catch(() => null),
+                this.fetchAPI(`/teams/statistics?team=${teams.away.id}&league=${league.id}&season=2023`).catch(() => null),
+                this.fetchAPI(`/fixtures?team=${teams.home.id}&last=10`).catch(() => ({response: []})),
+                this.fetchAPI(`/fixtures?team=${teams.away.id}&last=10`).catch(() => ({response: []})),
+                this.fetchAPI(`/fixtures/headtohead?h2h=${teams.home.id}-${teams.away.id}`).catch(() => ({response: []})),
+                this.fetchAPI(`/standings?league=${league.id}&season=2023`).catch(() => ({response: []}))
             ]);
 
             // Analiz hesapla
-            const xGAnalysis = this.calculateXG(homeStats.response, awayStats.response);
+            const xGAnalysis = this.calculateXG(homeStats?.response, awayStats?.response);
             const formAnalysis = this.calculateForm(homeLastMatches.response, awayLastMatches.response);
-            const homeAdvantage = this.calculateHomeAdvantage(homeStats.response, awayStats.response);
-            const injuryImpact = this.calculateInjuryImpact(homeInjuries.response, awayInjuries.response);
+            const homeAdvantage = this.calculateHomeAdvantage(homeStats?.response, awayStats?.response);
             const h2hAnalysis = this.calculateH2H(h2h.response);
             const standingsAnalysis = this.calculateStandingsImpact(standings.response, teams.home.id, teams.away.id);
             
@@ -140,7 +161,6 @@ class AIAnalysisEngine {
                 xG: xGAnalysis,
                 form: formAnalysis,
                 homeAdvantage,
-                injuries: injuryImpact,
                 h2h: h2hAnalysis,
                 standings: standingsAnalysis
             });
@@ -179,7 +199,22 @@ class AIAnalysisEngine {
         }
     }
 
-    // TÜM HESAPLAMA METODLARI
+    // YARDIMCI FETCH FONKSİYONU
+    async fetchAPI(endpoint) {
+        const url = `${this.apiConfig.baseUrl}${endpoint}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: this.apiConfig.headers
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        return await response.json();
+    }
+
+    // TÜM HESAPLAMA METODLARI (öncekiyle aynı)
     calculateXG(homeStats, awayStats) {
         if (!homeStats || !awayStats) {
             return { home: 1.2, away: 1.0, total: 2.2, over25: 50, under25: 50, btts: 50 };
@@ -213,70 +248,51 @@ class AIAnalysisEngine {
             if (!matches || matches.length === 0) return { points: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
             let points = 0, wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
             matches.slice(0, 10).forEach(m => {
-                const isHomeWinner = m.teams.home.winner;
-                const isAwayWinner = m.teams.away.winner;
-                const homeGoals = m.goals.home || 0;
-                const awayGoals = m.goals.away || 0;
-                
-                gf += homeGoals;
-                ga += awayGoals;
-                
-                if (isHomeWinner) { points += 3; wins++; }
-                else if (isAwayWinner) { points += 0; losses++; }
+                const homeWinner = m.teams.home.winner;
+                const awayWinner = m.teams.away.winner;
+                gf += (m.goals.home || 0);
+                ga += (m.goals.away || 0);
+                if (homeWinner) { points += 3; wins++; }
+                else if (awayWinner) { losses++; }
                 else { points += 1; draws++; }
             });
-            return { points, wins, draws, losses, goalsFor: gf, goalsAgainst: ga, goalDiff: gf - ga };
+            return { points, wins, draws, losses, goalsFor: gf, goalsAgainst: ga };
         };
         
         const home = analyze(homeLastMatches);
         const away = analyze(awayLastMatches);
-        
-        return {
-            home, away,
-            advantage: home.points - away.points,
-            homeAvgGoals: (home.goalsFor / 10).toFixed(2),
-            awayAvgGoals: (away.goalsFor / 10).toFixed(2)
-        };
+        return { home, away, advantage: home.points - away.points };
     }
 
     calculateHomeAdvantage(homeStats, awayStats) {
-        if (!homeStats || !awayStats) return { homeAdvantage: 15, homeWinRate: 50, awayWinRate: 30 };
+        if (!homeStats || !awayStats) return { homeAdvantage: 15 };
         const homeWinRate = (homeStats.fixtures?.wins?.home / homeStats.fixtures?.played?.home * 100) || 50;
         const awayWinRate = (awayStats.fixtures?.wins?.away / awayStats.fixtures?.played?.away * 100) || 30;
-        return { homeAdvantage: (homeWinRate - awayWinRate).toFixed(1), homeWinRate: homeWinRate.toFixed(1), awayWinRate: awayWinRate.toFixed(1) };
-    }
-
-    calculateInjuryImpact(homeInjuries, awayInjuries) {
-        const count = (injuries) => injuries?.filter(i => i.type === 'Missing Fixture').length || 0;
-        const homeKey = count(homeInjuries);
-        const awayKey = count(awayInjuries);
-        return { homeInjuries: homeInjuries?.length || 0, awayInjuries: awayInjuries?.length || 0, homeKeyPlayers: homeKey, awayKeyPlayers: awayKey, impact: (awayKey - homeKey) * 3 };
+        return { homeAdvantage: (homeWinRate - awayWinRate).toFixed(1) };
     }
 
     calculateH2H(h2hMatches) {
-        if (!h2hMatches || h2hMatches.length === 0) return { homeWins: 0, draws: 0, awayWins: 0, total: 0, avgGoals: 2.5 };
-        let hw = 0, d = 0, aw = 0, goals = 0;
+        if (!h2hMatches || h2hMatches.length === 0) return { homeWins: 0, draws: 0, awayWins: 0, total: 0 };
+        let hw = 0, d = 0, aw = 0;
         h2hMatches.slice(0, 5).forEach(m => {
             if (m.teams.home.winner) hw++;
             else if (m.teams.away.winner) aw++;
             else d++;
-            goals += (m.goals.home || 0) + (m.goals.away || 0);
         });
-        return { homeWins: hw, draws: d, awayWins: aw, total: h2hMatches.length, homeWinRate: ((hw / h2hMatches.length) * 100).toFixed(1), avgGoals: (goals / h2hMatches.length).toFixed(1) };
+        return { homeWins: hw, draws: d, awayWins: aw, total: h2hMatches.length, homeWinRate: ((hw / h2hMatches.length) * 100).toFixed(1) };
     }
 
     calculateStandingsImpact(standings, homeId, awayId) {
-        if (!standings || !standings[0]?.league?.standings) return { homeRank: 10, awayRank: 10, rankDiff: 0, pointsDiff: 0 };
-        const allStandings = standings[0].league.standings[0];
-        const home = allStandings.find(s => s.team.id === homeId);
-        const away = allStandings.find(s => s.team.id === awayId);
-        if (!home || !away) return { homeRank: 10, awayRank: 10, rankDiff: 0, pointsDiff: 0 };
-        return { homeRank: home.rank, awayRank: away.rank, rankDiff: away.rank - home.rank, homePoints: home.points, awayPoints: away.points, pointsDiff: home.points - away.points };
+        if (!standings || !standings[0]?.league?.standings) return { homeRank: 10, awayRank: 10, rankDiff: 0 };
+        const all = standings[0].league.standings[0];
+        const home = all.find(s => s.team.id === homeId);
+        const away = all.find(s => s.team.id === awayId);
+        if (!home || !away) return { homeRank: 10, awayRank: 10, rankDiff: 0 };
+        return { homeRank: home.rank, awayRank: away.rank, rankDiff: away.rank - home.rank };
     }
 
     calculateMarkets(analysis) {
         const { xG, form, homeAdvantage, h2h, standings } = analysis;
-        
         let homeWin = 40, draw = 25, awayWin = 35;
         homeWin += (form.advantage * 2);
         homeWin += (parseFloat(homeAdvantage.homeAdvantage) * 0.3);
@@ -330,7 +346,7 @@ class AIAnalysisEngine {
         if (analysis.xG.total > 0) score += 15;
         if (analysis.form.home.points > 0) score += 15;
         if (analysis.h2h.total > 0) score += 10;
-        if (analysis.standings.homePoints) score += 10;
+        if (analysis.standings.homeRank) score += 10;
         return Math.min(98, score);
     }
 
@@ -347,20 +363,11 @@ class AIAnalysisEngine {
 
     calculateFirstHalf(analysis) {
         const xG = analysis.analysis.xG;
-        const fhHome = (xG.home * 0.45).toFixed(1);
-        const fhAway = (xG.away * 0.40).toFixed(1);
-        
         let hw = 30, d = 35, aw = 30;
-        const total = hw + d + aw;
-        
         return {
             result: {
                 prediction: hw > aw ? (hw > d ? '1' : 'X') : (aw > d ? '2' : 'X'),
-                homeWin: Math.round((hw / total) * 100),
-                draw: Math.round((d / total) * 100),
-                awayWin: Math.round((aw / total) * 100),
-                confidence: 35,
-                odds: '2.85'
+                homeWin: 30, draw: 35, awayWin: 30, confidence: 35, odds: '2.85'
             },
             score: { mostLikely: '1-0', probability: 20 }
         };
@@ -529,7 +536,7 @@ class AIAnalysisEngine {
         for (const analysis of finished) {
             try {
                 const today = new Date().toISOString().split('T')[0];
-                const data = await apiService.getFixtures(today);
+                const data = await this.fetchAPI(`/fixtures?date=${today}`);
                 const match = data.response?.find(m => m.fixture.id === analysis.fixtureId);
                 if (match) {
                     await this.evaluatePrediction(analysis, match);
@@ -555,7 +562,6 @@ class AIAnalysisEngine {
             wonPredictions: []
         };
         
-        // MS
         let actual = 'X';
         if (homeGoals > awayGoals) actual = '1';
         else if (awayGoals > homeGoals) actual = '2';
@@ -563,12 +569,10 @@ class AIAnalysisEngine {
             result.wonPredictions.push({ type: 'MS', prediction: analysis.bestMarket.label, odds: analysis.bestMarket.odds });
         }
         
-        // KG
         if (homeGoals > 0 && awayGoals > 0) {
             result.wonPredictions.push({ type: 'KG', prediction: 'KG Var', odds: '1.65' });
         }
         
-        // 2.5
         if (total > 2.5) {
             result.wonPredictions.push({ type: '2.5', prediction: '2.5 Üst', odds: '1.80' });
         }
