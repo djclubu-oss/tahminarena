@@ -59,13 +59,6 @@ class ApiService {
     return this.makeRequest('/fixtures', { date: today });
   }
 
-  async getTomorrowMatches() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const date = tomorrow.toISOString().split('T')[0];
-    return this.makeRequest('/fixtures', { date: date });
-  }
-
   async getFixtureById(fixtureId) {
     return this.makeRequest('/fixtures', { id: fixtureId });
   }
@@ -94,16 +87,17 @@ class ApiService {
     return this.makeRequest('/injuries', { team: teamId, league: leagueId });
   }
 
-  // SADECE GERÇEK CANLI MAÇLAR (Canlı Maçlar sekmesi için)
+  // SADECE GERÇEK CANLI MAÇLAR - Canlı Maçlar sekmesi için
   async getLiveMatches() {
     const liveData = await this.getAllLiveMatches();
     const allMatches = liveData.response || [];
     
-    // Sadece şu anda oynanan maçlar
+    // API "live=all" ile yaklaşan maçları da döndürüyor
+    // Sadece gerçekten canlı oynanan maçları filtrele
     const activeMatches = allMatches.filter(match => {
       const status = match.fixture?.status?.short;
-      const elapsed = match.fixture?.status?.elapsed;
-      return ['1H', '2H', 'HT', 'ET'].includes(status) && elapsed > 0;
+      // Sadece şu anda oynanan: İlk Yarı, İkinci Yarı, Devre Arası, Uzatmalar
+      return ['1H', '2H', 'HT', 'ET'].includes(status);
     });
     
     return {
@@ -113,54 +107,54 @@ class ApiService {
     };
   }
 
-  // BUGÜNÜN TÜM MAÇLARI (YZ Tahminleri için)
+  // BUGÜNÜN MAÇLARI - YZ Tahminleri için (sadece önemli liglerden)
   async getMatches() {
     const today = new Date().toISOString().split('T')[0];
-    
-    // Canlı maçları getir
-    const liveData = await this.getAllLiveMatches();
-    const liveMatches = liveData.response || [];
     
     // Bugünkü maçları getir
     const todayData = await this.getTodayMatches();
     const todayMatches = todayData.response || [];
     
-    const allMatches = [];
+    // Önemli ligler (analiz edilecek)
+    const majorLeagues = [
+      39, 40, // Premier League, Championship
+      140, 141, // La Liga, Segunda
+      78, 79, // Bundesliga, 2. Bundesliga
+      135, 136, // Serie A, B
+      61, 62, // Ligue 1, 2
+      203, 204, // Süper Lig, 1. Lig
+      88, 89, // Eredivisie
+      94, 95, // Primeira Liga
+      144, 145, // Pro League
+      2, 3, 848, // Şampiyonlar Ligi, Avrupa Ligi, Konferans
+      71, 72, // Serie A Brazil
+      128, 129, // Arjantin
+      253, // MLS
+      262, // Liga MX
+    ];
     
-    // Canlı maçları ekle
-    liveMatches.forEach(match => {
+    // Sadece önemli liglerden ve bugün oynanacak maçları filtrele
+    const filteredMatches = todayMatches.filter(match => {
       const status = match.fixture?.status?.short;
-      const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
-      
-      // Sadece bugünkü canlı maçlar
-      if (matchDate === today && ['1H', '2H', 'HT', 'ET'].includes(status)) {
-        allMatches.push(match);
-      }
-    });
-    
-    // Bugünkü maçları ekle (başlamamış veya başlayacak)
-    todayMatches.forEach(match => {
-      const status = match.fixture?.status?.short;
+      const leagueId = match.league?.id;
       const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
       
       // Bitmiş maçları atla
       if (['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status)) {
-        return;
+        return false;
       }
       
-      // Sadece bugünkü maçlar
-      if (matchDate === today && !allMatches.some(m => m.fixture.id === match.fixture.id)) {
-        allMatches.push(match);
-      }
+      // Sadece bugünkü maçlar ve önemli ligler
+      return matchDate === today && majorLeagues.includes(leagueId);
     });
     
-    // Tarihe göre sırala
-    allMatches.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
+    // En fazla 50 maç analiz et (performans için)
+    const limitedMatches = filteredMatches.slice(0, 50);
     
     return {
-      matches: allMatches,
-      isLive: liveMatches.some(m => ['1H', '2H', 'HT', 'ET'].includes(m.fixture?.status?.short)),
-      count: allMatches.length
+      matches: limitedMatches,
+      isLive: limitedMatches.some(m => ['1H', '2H', 'HT', 'ET'].includes(m.fixture?.status?.short)),
+      count: limitedMatches.length
     };
   }
 
