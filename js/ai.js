@@ -1,4 +1,7 @@
-// ai.js - Mevcut apiService ile çalışan AI analiz motoru
+// ai.js BAŞINA EKLEYİN - Hata ayıklama için
+console.log('AI Engine yüklendi');
+console.log('apiService var mı?', typeof apiService);
+console.log('apiService.getFixtures var mı?', typeof apiService?.getFixtures);// ai.js - Mevcut apiService ile çalışan AI analiz motoru
 
 class AIAnalysisEngine {
     constructor() {
