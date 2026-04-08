@@ -383,22 +383,38 @@ class AIAnalysisEngine {
       difference: homeMotivation - awayMotivation
     };
   }
+
   // ===== MARKET PROBABILITIES =====
   calculateMarkets(analysis) {
     const { xG, form, homeAdvantage, injuries, h2h, standings, motivation } = analysis;
+
+    // NaN kontrolü - eğer veriler eksikse varsayılan değerler kullan
+    const safeForm = form || { advantage: 0 };
+    const safeHomeAdvantage = homeAdvantage || { homeAdvantage: 0, homeWinRate: 50 };
+    const safeInjuries = injuries || { impact: 0 };
+    const safeH2h = h2h || { homeWinRate: 50 };
+    const safeStandings = standings || { rankDiff: 0, pointsDiff: 0 };
+    const safeMotivation = motivation || { difference: 0 };
 
     // Base probabilities
     let homeWinBase = 40;
     let drawBase = 25;
     let awayWinBase = 35;
 
-    // Apply factors
-    homeWinBase += (form.advantage * 2);
-    homeWinBase += (parseFloat(homeAdvantage.homeAdvantage) * 0.3);
-    homeWinBase += (injuries.impact * 0.5);
-    homeWinBase += (parseFloat(h2h.homeWinRate) * 0.15);
-    homeWinBase += (standings.rankDiff * 2);
-    homeWinBase += (motivation.difference * 0.2);
+    // Apply factors - NaN kontrolü ile
+    const formAdvantage = isNaN(safeForm.advantage) ? 0 : safeForm.advantage;
+    const homeAdv = isNaN(parseFloat(safeHomeAdvantage.homeAdvantage)) ? 0 : parseFloat(safeHomeAdvantage.homeAdvantage);
+    const injuryImpact = isNaN(safeInjuries.impact) ? 0 : safeInjuries.impact;
+    const h2hHomeWin = isNaN(parseFloat(safeH2h.homeWinRate)) ? 0 : parseFloat(safeH2h.homeWinRate);
+    const rankDiff = isNaN(safeStandings.rankDiff) ? 0 : safeStandings.rankDiff;
+    const motivationDiff = isNaN(safeMotivation.difference) ? 0 : safeMotivation.difference;
+
+    homeWinBase += (formAdvantage * 2);
+    homeWinBase += (homeAdv * 0.3);
+    homeWinBase += (injuryImpact * 0.5);
+    homeWinBase += (h2hHomeWin * 0.15);
+    homeWinBase += (rankDiff * 2);
+    homeWinBase += (motivationDiff * 0.2);
 
     // Normalize
     const total = homeWinBase + drawBase + awayWinBase;
