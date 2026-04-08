@@ -1,6 +1,5 @@
 // ===== Enhanced Coupon Service =====
 
-// STORAGE_KEYS kontrolü
 if (typeof STORAGE_KEYS === 'undefined') {
   var STORAGE_KEYS = {
     SESSION: 'ta_session',
@@ -15,18 +14,12 @@ if (typeof STORAGE_KEYS === 'undefined') {
 }
 
 class CouponService {
-}
-// ===== Enhanced Coupon Service =====
-
-class CouponService {
   constructor() {
     this.couponKey = STORAGE_KEYS.USER_COUPON;
     this.analysesKey = STORAGE_KEYS.AI_ANALYSES;
     this.successfulKey = STORAGE_KEYS.SUCCESSFUL_PREDICTIONS;
   }
 
-  // ===== USER COUPON MANAGEMENT =====
-  
   getUserCoupon() {
     const saved = localStorage.getItem(this.couponKey);
     return saved ? JSON.parse(saved) : [];
@@ -38,16 +31,10 @@ class CouponService {
 
   addToCoupon(matchData) {
     const coupon = this.getUserCoupon();
-    
     if (coupon.some(c => c.fixtureId === matchData.fixtureId)) {
       return { success: false, error: 'Bu maç zaten kuponunuzda!' };
     }
-
-    coupon.push({
-      ...matchData,
-      addedAt: new Date().toISOString()
-    });
-
+    coupon.push({ ...matchData, addedAt: new Date().toISOString() });
     this.saveUserCoupon(coupon);
     return { success: true, message: 'Maç kuponunuza eklendi.' };
   }
@@ -71,7 +58,6 @@ class CouponService {
   getCouponStats() {
     const coupon = this.getUserCoupon();
     const totalOdds = coupon.reduce((acc, c) => acc * (c.odds || 1.5), 1);
-    
     return {
       count: coupon.length,
       totalOdds: totalOdds.toFixed(2),
@@ -79,8 +65,6 @@ class CouponService {
     };
   }
 
-  // ===== AI ANALYSES STORAGE =====
-  
   saveAnalyses(analyses) {
     const data = {
       date: new Date().toISOString().split('T')[0],
@@ -92,34 +76,20 @@ class CouponService {
   getAnalyses() {
     const saved = localStorage.getItem(this.analysesKey);
     if (!saved) return null;
-
     const data = JSON.parse(saved);
     const today = new Date().toISOString().split('T')[0];
-    
     if (data.date !== today) {
       localStorage.removeItem(this.analysesKey);
       return null;
     }
-
     return data.analyses;
   }
 
-  // ===== SUCCESSFUL PREDICTIONS =====
-  
   addSuccessfulPrediction(analysis, result) {
     const saved = localStorage.getItem(this.successfulKey);
     const successful = saved ? JSON.parse(saved) : [];
-
-    successful.push({
-      ...analysis,
-      actualResult: result,
-      verifiedAt: new Date().toISOString()
-    });
-
-    if (successful.length > 50) {
-      successful.shift();
-    }
-
+    successful.push({ ...analysis, actualResult: result, verifiedAt: new Date().toISOString() });
+    if (successful.length > 50) successful.shift();
     localStorage.setItem(this.successfulKey, JSON.stringify(successful));
   }
 
@@ -128,8 +98,6 @@ class CouponService {
     return saved ? JSON.parse(saved) : [];
   }
 
-  // ===== PREMIUM COUPON STORAGE =====
-  
   savePremiumCoupons(coupons) {
     localStorage.setItem(STORAGE_KEYS.PREMIUM_COUPONS, JSON.stringify(coupons));
   }
@@ -137,29 +105,22 @@ class CouponService {
   getPremiumCoupons() {
     const saved = localStorage.getItem(STORAGE_KEYS.PREMIUM_COUPONS);
     if (!saved) return null;
-
     const data = JSON.parse(saved);
     const today = new Date().toISOString().split('T')[0];
-    
     if (data.date !== today) {
       localStorage.removeItem(STORAGE_KEYS.PREMIUM_COUPONS);
       return null;
     }
-
     return data;
   }
 
-  // ===== RENDER FUNCTIONS =====
-  
   renderUserCoupon() {
     const coupon = this.getUserCoupon();
     const container = document.getElementById('myCouponMatches');
     const stats = this.getCouponStats();
-
     document.getElementById('myCouponCount').textContent = stats.count;
     document.getElementById('myCouponOdds').textContent = stats.totalOdds;
     document.getElementById('my-coupon-count').textContent = stats.count;
-
     if (coupon.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -170,28 +131,20 @@ class CouponService {
       `;
       return;
     }
-
     container.innerHTML = coupon.map((match) => `
       <div class="match-card coupon-item" style="position: relative;">
         <button class="remove-from-coupon" onclick="couponService.removeFromCoupon(${match.fixtureId}); app.renderUserCoupon();">
           <i class="fas fa-times"></i>
         </button>
-        
         <div class="match-header">
           <span class="league">${match.league}</span>
           <span class="match-status">${new Date(match.matchTime).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</span>
         </div>
-        
         <div class="match-teams">
-          <div class="team home">
-            <span>${match.homeTeam}</span>
-          </div>
+          <div class="team home"><span>${match.homeTeam}</span></div>
           <div class="vs">vs</div>
-          <div class="team away">
-            <span>${match.awayTeam}</span>
-          </div>
+          <div class="team away"><span>${match.awayTeam}</span></div>
         </div>
-        
         <div class="coupon-selection">
           <div class="selected-prediction">
             <span class="prediction-label">${match.selectedPrediction?.label || 'Seçim yapılmadı'}</span>
@@ -200,14 +153,12 @@ class CouponService {
         </div>
       </div>
     `).join('');
-
     updateCouponWin();
   }
 
   renderAICards(analyses, isPremium = false) {
     const container = document.getElementById('aiCards');
     if (!container) return;
-
     if (!analyses || analyses.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -217,21 +168,15 @@ class CouponService {
       `;
       return;
     }
-
-    // TÜM ANALİZLERİ GÖSTER - LİMİT YOK
-    // Sadece blur efekti premium olmayanlar için 2. tahminden sonra
     container.innerHTML = analyses.map((analysis, index) => {
-      const isBlurred = !isPremium && index >= 2; // Sadece ilk 2 tahmin görünür, gerisi blur
-      const confidenceClass = analysis.confidenceScore >= 80 ? 'high' : 
-                             analysis.confidenceScore >= 60 ? 'medium' : 'low';
-      
+      const isBlurred = !isPremium && index >= 2;
+      const confidenceClass = analysis.confidenceScore >= 80 ? 'high' : analysis.confidenceScore >= 60 ? 'medium' : 'low';
       const matchTime = new Date(analysis.matchTime).toLocaleTimeString('tr-TR', {
         hour: '2-digit', 
         minute: '2-digit',
         day: 'numeric',
         month: 'short'
       });
-
       return `
         <div class="ai-card ${isBlurred ? 'blurred' : ''}" data-fixture="${analysis.fixtureId}">
           ${isBlurred ? `
@@ -241,25 +186,19 @@ class CouponService {
               <button onclick="showPremiumModal()">Premium Ol</button>
             </div>
           ` : ''}
-          
           <div class="ai-header">
             <span class="league">${analysis.league}</span>
-            <span class="confidence-badge ${confidenceClass}">
-              %${analysis.confidenceScore} Güven
-            </span>
+            <span class="confidence-badge ${confidenceClass}">%${analysis.confidenceScore} Güven</span>
           </div>
-          
           <div class="ai-teams">
             <span>${analysis.homeTeam}</span>
             <span style="color: var(--text-muted);">vs</span>
             <span>${analysis.awayTeam}</span>
           </div>
-          
           <div class="ai-meta">
             <span>⏰ ${matchTime}</span>
             <span>📊 ${analysis.analysis?.xG?.total || '-'} xG</span>
           </div>
-          
           <div class="ai-prediction">
             <div class="prediction-header">Yapay Zeka Tahmini</div>
             <div class="prediction-main">
@@ -271,16 +210,13 @@ class CouponService {
               <div class="fill" style="width: ${analysis.bestMarket.prob}%"></div>
             </div>
           </div>
-          
           <div class="ai-reason">
             <i class="fas fa-info-circle"></i>
             ${analysis.reason}
           </div>
-          
           <div class="ai-markets">
             ${this.renderMiniMarkets(analysis.markets)}
           </div>
-          
           <button class="add-to-coupon ${this.isInCoupon(analysis.fixtureId) ? 'added' : ''}" 
                   onclick="app.addToCouponWithPrediction(${analysis.fixtureId})"
                   id="ai-btn-${analysis.fixtureId}"
@@ -291,48 +227,45 @@ class CouponService {
         </div>
       `;
     }).join('');
-
     this.checkSuccessfulPredictions(analyses);
   }
 
   renderMiniMarkets(markets) {
     if (!markets) return '';
-    
     let html = '<div class="mini-markets">';
-    
     if (markets.result) {
       Object.entries(markets.result).forEach(([key, val]) => {
+        const prob = isNaN(val.prob) ? 0 : (val.prob || 0);
         html += `
-          <div class="mini-market" title="${val.description}">
-            <span class="mini-label">${val.label}</span>
-            <span class="mini-prob ${val.prob >= 60 ? 'high' : val.prob >= 45 ? 'medium' : 'low'}">%${val.prob}</span>
+          <div class="mini-market" title="${val.description || ''}">
+            <span class="mini-label">${val.label || key}</span>
+            <span class="mini-prob ${prob >= 60 ? 'high' : prob >= 45 ? 'medium' : 'low'}">%${prob}</span>
           </div>
         `;
       });
     }
-    
     if (markets.ou) {
       Object.entries(markets.ou).slice(0, 2).forEach(([key, val]) => {
+        const prob = isNaN(val.prob) ? 0 : (val.prob || 0);
         html += `
-          <div class="mini-market" title="${val.description}">
-            <span class="mini-label">${val.label}</span>
-            <span class="mini-prob ${val.prob >= 60 ? 'high' : val.prob >= 45 ? 'medium' : 'low'}">%${val.prob}</span>
+          <div class="mini-market" title="${val.description || ''}">
+            <span class="mini-label">${val.label || key}</span>
+            <span class="mini-prob ${prob >= 60 ? 'high' : prob >= 45 ? 'medium' : 'low'}">%${prob}</span>
           </div>
         `;
       });
     }
-    
     if (markets.btts) {
       Object.entries(markets.btts).forEach(([key, val]) => {
+        const prob = isNaN(val.prob) ? 0 : (val.prob || 0);
         html += `
-          <div class="mini-market" title="${val.description}">
-            <span class="mini-label">${val.label}</span>
-            <span class="mini-prob ${val.prob >= 60 ? 'high' : val.prob >= 45 ? 'medium' : 'low'}">%${val.prob}</span>
+          <div class="mini-market" title="${val.description || ''}">
+            <span class="mini-label">${val.label || key}</span>
+            <span class="mini-prob ${prob >= 60 ? 'high' : prob >= 45 ? 'medium' : 'low'}">%${prob}</span>
           </div>
         `;
       });
     }
-    
     html += '</div>';
     return html;
   }
@@ -340,7 +273,6 @@ class CouponService {
   renderPremiumCoupons(coupons) {
     const container = document.getElementById('premiumContent');
     if (!container) return;
-
     if (!coupons || !coupons.coupons || coupons.coupons.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -351,14 +283,12 @@ class CouponService {
       `;
       return;
     }
-
     container.innerHTML = `
       <div class="premium-header">
         <i class="fas fa-crown"></i>
         <h3>Günlük Premium Kuponlar</h3>
         <p>Yapay zeka tarafından seçilen en güvenilir maçlar</p>
       </div>
-      
       <div class="premium-coupons-grid">
         ${coupons.coupons.map((coupon, idx) => this.renderPremiumCouponCard(coupon, idx)).join('')}
       </div>
@@ -366,9 +296,7 @@ class CouponService {
   }
 
   renderPremiumCouponCard(coupon, index) {
-    const confidenceClass = coupon.avgConfidence >= 85 ? 'ultra' : 
-                           coupon.avgConfidence >= 75 ? 'high' : 'medium';
-    
+    const confidenceClass = coupon.avgConfidence >= 85 ? 'ultra' : coupon.avgConfidence >= 75 ? 'high' : 'medium';
     return `
       <div class="premium-coupon-card ${confidenceClass}">
         <div class="premium-coupon-header">
@@ -382,7 +310,6 @@ class CouponService {
             <span class="premium-confidence">%${coupon.avgConfidence}</span>
           </div>
         </div>
-        
         <div class="premium-picks">
           ${coupon.picks.map((pick, idx) => `
             <div class="premium-pick">
@@ -404,12 +331,10 @@ class CouponService {
             </div>
           `).join('')}
         </div>
-        
         <div class="premium-coupon-footer">
           <div class="strategy-badge">
             <i class="fas fa-robot"></i>
-            ${coupon.strategy === 'ultra_safe' ? 'Ultra Güvenli' : 
-              coupon.strategy === 'mixed' ? 'Strateji' : 'Değer'}
+            ${coupon.strategy === 'ultra_safe' ? 'Ultra Güvenli' : coupon.strategy === 'mixed' ? 'Strateji' : 'Değer'}
           </div>
           <button class="btn-add-all" onclick="app.addPremiumToCoupon(${index})">
             <i class="fas fa-plus"></i> Tümünü Ekle
@@ -427,26 +352,21 @@ class CouponService {
           const match = fixture.response[0];
           const homeGoals = match.goals.home;
           const awayGoals = match.goals.away;
-          
           let isWin = false;
-          
           if (analysis.bestMarket.market === 'result') {
             if (analysis.bestMarket.pick === '1' && homeGoals > awayGoals) isWin = true;
             if (analysis.bestMarket.pick === 'X' && homeGoals === awayGoals) isWin = true;
             if (analysis.bestMarket.pick === '2' && homeGoals < awayGoals) isWin = true;
           }
-          
           if (analysis.bestMarket.market === 'ou') {
             const total = homeGoals + awayGoals;
             if (analysis.bestMarket.pick === 'over25' && total > 2.5) isWin = true;
             if (analysis.bestMarket.pick === 'under25' && total < 2.5) isWin = true;
           }
-          
           if (analysis.bestMarket.market === 'btts') {
             if (analysis.bestMarket.pick === 'yes' && homeGoals > 0 && awayGoals > 0) isWin = true;
             if (analysis.bestMarket.pick === 'no' && (homeGoals === 0 || awayGoals === 0)) isWin = true;
           }
-
           if (isWin) {
             const card = document.querySelector(`.ai-card[data-fixture="${analysis.fixtureId}"]`);
             if (card) {
@@ -461,9 +381,7 @@ class CouponService {
   renderSuccessfulPredictions() {
     const container = document.getElementById('successfulCards');
     if (!container) return;
-
     const successful = this.getSuccessfulPredictions();
-    
     if (successful.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -473,7 +391,6 @@ class CouponService {
       `;
       return;
     }
-
     container.innerHTML = successful.slice(-10).reverse().map(pred => `
       <div class="ai-card success-card">
         <div class="success-badge">
@@ -484,7 +401,6 @@ class CouponService {
           <span style="color: var(--green);">${pred.actualResult?.homeGoals || '-'} - ${pred.actualResult?.awayGoals || '-'}</span>
           <span>${pred.awayTeam}</span>
         </div>
-        
         <div class="ai-prediction">
           <div class="prediction-main">
             <span class="label">${pred.bestMarket.label}</span>
@@ -496,5 +412,4 @@ class CouponService {
   }
 }
 
-// Create global instance
 const couponService = new CouponService();
