@@ -9,7 +9,7 @@ class ApiService {
     };
     this.requestCount = this.loadRequestCount();
     this.cache = new Map();
-    this.cacheExpiry = 60000; // 1 minute cache
+    this.cacheExpiry = 60000;
   }
 
   loadRequestCount() {
@@ -17,9 +17,7 @@ class ApiService {
     if (saved) {
       const data = JSON.parse(saved);
       const today = new Date().toISOString().split('T')[0];
-      if (data.date === today) {
-        return data.count;
-      }
+      if (data.date === today) return data.count;
     }
     return 0;
   }
@@ -34,30 +32,17 @@ class ApiService {
 
   async makeRequest(endpoint, params = {}) {
     const cacheKey = `${endpoint}?${new URLSearchParams(params).toString()}`;
-    
-    // Check cache
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
-      if (Date.now() - cached.time < this.cacheExpiry) {
-        return cached.data;
-      }
+      if (Date.now() - cached.time < this.cacheExpiry) return cached.data;
     }
-
     try {
       const url = `${this.baseUrl}${endpoint}?${new URLSearchParams(params).toString()}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.headers
-      });
-
+      const response = await fetch(url, { method: 'GET', headers: this.headers });
       const data = await response.json();
       this.requestCount++;
       this.saveRequestCount();
-
-      // Cache the response
       this.cache.set(cacheKey, { data, time: Date.now() });
-
       return data;
     } catch (error) {
       console.error('API Error:', error);
@@ -65,182 +50,84 @@ class ApiService {
     }
   }
 
-  // ===== FIXTURES =====
-  
-  // Get ALL live matches from all leagues
   async getAllLiveMatches() {
-    // Canlı tüm maçları getir (tüm liglerden)
     return this.makeRequest('/fixtures', { live: 'all' });
   }
 
-  // Get live matches by league
-  async getLiveMatchesByLeague(leagueId) {
-    return this.makeRequest('/fixtures', { live: 'all', league: leagueId });
-  }
-
-  // Get today's matches
   async getTodayMatches() {
     const today = new Date().toISOString().split('T')[0];
     return this.makeRequest('/fixtures', { date: today });
   }
 
-  // Get today's matches by league
-  async getTodayMatchesByLeague(leagueId) {
-    const today = new Date().toISOString().split('T')[0];
-    return this.makeRequest('/fixtures', { date: today, league: leagueId });
-  }
-
-  // Get upcoming matches (next 3 days)
-  async getUpcomingMatches() {
-    const today = new Date();
-    const dates = [];
-    for (let i = 1; i <= 3; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    
-    const allMatches = [];
-    for (const date of dates) {
-      const data = await this.makeRequest('/fixtures', { date });
-      if (data.response) {
-        allMatches.push(...data.response);
-      }
-    }
-    return { response: allMatches };
-  }
-
-  // Get fixture by ID
   async getFixtureById(fixtureId) {
     return this.makeRequest('/fixtures', { id: fixtureId });
   }
 
-  // Get fixture statistics
-  async getFixtureStatistics(fixtureId) {
-    return this.makeRequest('/fixtures/statistics', { fixture: fixtureId });
-  }
-
-  // Get fixture events (goals, cards, etc.)
-  async getFixtureEvents(fixtureId) {
-    return this.makeRequest('/fixtures/events', { fixture: fixtureId });
-  }
-
-  // ===== TEAMS =====
-
-  // Get team statistics
   async getTeamStatistics(teamId, leagueId, season = CURRENT_SEASON) {
-    return this.makeRequest('/teams/statistics', {
-      team: teamId,
-      league: leagueId,
-      season: season
-    });
+    return this.makeRequest('/teams/statistics', { team: teamId, league: leagueId, season: season });
   }
 
-  // Get team information
-  async getTeamInfo(teamId) {
-    return this.makeRequest('/teams', { id: teamId });
-  }
-
-  // Get last 10 matches for a team
   async getTeamLastMatches(teamId, limit = 10) {
-    return this.makeRequest('/fixtures', {
-      team: teamId,
-      last: limit
-    });
+    return this.makeRequest('/fixtures', { team: teamId, last: limit });
   }
 
-  // Get team form (last 5 matches)
-  async getTeamForm(teamId) {
-    const data = await this.makeRequest('/fixtures', {
-      team: teamId,
-      last: 5
-    });
-    return data.response || [];
-  }
-
-  // ===== STANDINGS =====
-
-  // Get league standings
   async getStandings(leagueId, season = CURRENT_SEASON) {
-    return this.makeRequest('/standings', {
-      league: leagueId,
-      season: season
-    });
+    return this.makeRequest('/standings', { league: leagueId, season: season });
   }
 
-  // ===== PREDICTIONS =====
-
-  // Get match predictions
   async getPredictions(fixtureId) {
     return this.makeRequest('/predictions', { fixture: fixtureId });
   }
 
-  // ===== HEAD TO HEAD =====
-
-  // Get H2H matches
   async getHeadToHead(team1Id, team2Id, limit = 10) {
-    return this.makeRequest('/fixtures/headtohead', {
-      h2h: `${team1Id}-${team2Id}`,
-      last: limit
-    });
+    return this.makeRequest('/fixtures/headtohead', { h2h: `${team1Id}-${team2Id}`, last: limit });
   }
 
-  // ===== INJURIES =====
-
-  // Get team injuries
   async getInjuries(teamId, leagueId) {
-    return this.makeRequest('/injuries', {
-      team: teamId,
-      league: leagueId
-    });
+    return this.makeRequest('/injuries', { team: teamId, league: leagueId });
   }
 
-  // ===== ODDS =====
-
-  // Get match odds
-  async getOdds(fixtureId) {
-    return this.makeRequest('/odds', { fixture: fixtureId });
-  }
-
-  // ===== PLAYERS =====
-
-  // Get top scorers
-  async getTopScorers(leagueId, season = CURRENT_SEASON) {
-    return this.makeRequest('/players/topscorers', {
-      league: leagueId,
-      season: season
-    });
-  }
-
-  // ===== MAIN FUNCTION: Get matches =====
   async getMatches() {
-    // SADECE CANLI MAÇLARI GETİR
+    const today = new Date().toISOString().split('T')[0];
     const liveData = await this.getAllLiveMatches();
     const liveMatches = liveData.response || [];
+    const todayData = await this.getTodayMatches();
+    const todayMatches = todayData.response || [];
+    const allMatches = [];
     
-    // Sadece gerçekten canlı oynanan maçları filtrele
-    const activeMatches = liveMatches.filter(match => {
+    liveMatches.forEach(match => {
       const status = match.fixture?.status?.short;
-      // Sadece şu anda oynanan maçlar: İlk Yarı, İkinci Yarı, Devre Arası, Uzatmalar
-      return ['1H', '2H', 'HT', 'ET'].includes(status);
+      const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
+      if (matchDate === today && ['1H', '2H', 'HT', 'ET'].includes(status)) {
+        allMatches.push(match);
+      }
     });
     
+    todayMatches.forEach(match => {
+      const status = match.fixture?.status?.short;
+      const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
+      if (['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status)) return;
+      if (matchDate === today && !allMatches.some(m => m.fixture.id === match.fixture.id)) {
+        allMatches.push(match);
+      }
+    });
+    
+    allMatches.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
+    
     return {
-      matches: activeMatches,
-      isLive: activeMatches.length > 0,
-      count: activeMatches.length
+      matches: allMatches,
+      isLive: liveMatches.some(m => ['1H', '2H', 'HT', 'ET'].includes(m.fixture?.status?.short)),
+      count: allMatches.length
     };
   }
 
-  // Get request count
   getRequestCount() {
     return this.requestCount;
   }
 
-  // Get remaining requests
-  return 75000 - this.requestCount;
+  getRemainingRequests() {
+    return 75000 - this.requestCount;
   }
 }
 
-// Create global instance
 const apiService = new ApiService();
