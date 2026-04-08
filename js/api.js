@@ -212,74 +212,23 @@ class ApiService {
     });
   }
 
-  // ===== MAIN FUNCTION: Get matches with priority =====
+  // ===== MAIN FUNCTION: Get matches =====
   async getMatches() {
-    const now = new Date();
-    
-    // 1. Canlı maçları getir
+    // SADECE CANLI MAÇLARI GETİR
     const liveData = await this.getAllLiveMatches();
     const liveMatches = liveData.response || [];
     
-    // 2. Bugünkü maçları getir
-    const todayData = await this.getTodayMatches();
-    const todayMatches = todayData.response || [];
-    
-    // 3. Yaklaşan maçları getir (yarın ve sonraki günler)
-    const upcomingData = await this.getUpcomingMatches();
-    const upcomingMatches = upcomingData.response || [];
-    
-    // Birleştir ve filtrele
-    const allMatches = [];
-    
-    // Canlı maçları ekle (NS, 1H, 2H, HT status)
-    liveMatches.forEach(match => {
+    // Sadece gerçekten canlı oynanan maçları filtrele
+    const activeMatches = liveMatches.filter(match => {
       const status = match.fixture?.status?.short;
-      if (['NS', '1H', '2H', 'HT', 'ET'].includes(status)) {
-        allMatches.push(match);
-      }
+      // Sadece şu anda oynanan maçlar: İlk Yarı, İkinci Yarı, Devre Arası, Uzatmalar
+      return ['1H', '2H', 'HT', 'ET'].includes(status);
     });
-    
-    // Bugünkü maçları ekle (bitmemiş olanlar)
-    todayMatches.forEach(match => {
-      const status = match.fixture?.status?.short;
-      const matchDate = new Date(match.fixture?.date);
-      
-      // Bitmiş maçları atla (FT, AET, PEN)
-      if (['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status)) {
-        return;
-      }
-      
-      // Maç zamanı geçmişse ve bitmemişse kontrol et
-      if (matchDate < now && status === 'NS') {
-        return; // Başlamış ama bitmemiş garip durum, atla
-      }
-      
-      if (!allMatches.some(m => m.fixture.id === match.fixture.id)) {
-        allMatches.push(match);
-      }
-    });
-    
-    // Yaklaşan maçları ekle (gelecek 3 gün)
-    upcomingMatches.forEach(match => {
-      const status = match.fixture?.status?.short;
-      
-      // Bitmiş maçları atla
-      if (['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status)) {
-        return;
-      }
-      
-      if (!allMatches.some(m => m.fixture.id === match.fixture.id)) {
-        allMatches.push(match);
-      }
-    });
-    
-    // Tarihe göre sırala (yaklaşanlar önce)
-    allMatches.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
     
     return {
-      matches: allMatches,
-      isLive: liveMatches.some(m => ['1H', '2H', 'HT', 'ET'].includes(m.fixture?.status?.short)),
-      count: allMatches.length
+      matches: activeMatches,
+      isLive: activeMatches.length > 0,
+      count: activeMatches.length
     };
   }
 
@@ -289,8 +238,7 @@ class ApiService {
   }
 
   // Get remaining requests
-  getRemainingRequests() {
-    return 75000 - this.requestCount;
+  return 75000 - this.requestCount;
   }
 }
 
