@@ -1,3 +1,8 @@
+// api.js BAŞINA EKLE
+const STORAGE_KEYS = {
+    REQUEST_COUNT: 'api_request_count',
+    LAST_RESET: 'api_last_reset'
+};
 // ===== Enhanced API Service - 75,000 Daily Requests =====
 
 class ApiService {
