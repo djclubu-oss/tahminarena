@@ -59,6 +59,13 @@ class ApiService {
     return this.makeRequest('/fixtures', { date: today });
   }
 
+  async getTomorrowMatches() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const date = tomorrow.toISOString().split('T')[0];
+    return this.makeRequest('/fixtures', { date: date });
+  }
+
   async getFixtureById(fixtureId) {
     return this.makeRequest('/fixtures', { id: fixtureId });
   }
@@ -87,31 +94,67 @@ class ApiService {
     return this.makeRequest('/injuries', { team: teamId, league: leagueId });
   }
 
+  // SADECE GERÇEK CANLI MAÇLAR (Canlı Maçlar sekmesi için)
+  async getLiveMatches() {
+    const liveData = await this.getAllLiveMatches();
+    const allMatches = liveData.response || [];
+    
+    // Sadece şu anda oynanan maçlar
+    const activeMatches = allMatches.filter(match => {
+      const status = match.fixture?.status?.short;
+      const elapsed = match.fixture?.status?.elapsed;
+      return ['1H', '2H', 'HT', 'ET'].includes(status) && elapsed > 0;
+    });
+    
+    return {
+      matches: activeMatches,
+      isLive: activeMatches.length > 0,
+      count: activeMatches.length
+    };
+  }
+
+  // BUGÜNÜN TÜM MAÇLARI (YZ Tahminleri için)
   async getMatches() {
     const today = new Date().toISOString().split('T')[0];
+    
+    // Canlı maçları getir
     const liveData = await this.getAllLiveMatches();
     const liveMatches = liveData.response || [];
+    
+    // Bugünkü maçları getir
     const todayData = await this.getTodayMatches();
     const todayMatches = todayData.response || [];
+    
     const allMatches = [];
     
+    // Canlı maçları ekle
     liveMatches.forEach(match => {
       const status = match.fixture?.status?.short;
       const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
+      
+      // Sadece bugünkü canlı maçlar
       if (matchDate === today && ['1H', '2H', 'HT', 'ET'].includes(status)) {
         allMatches.push(match);
       }
     });
     
+    // Bugünkü maçları ekle (başlamamış veya başlayacak)
     todayMatches.forEach(match => {
       const status = match.fixture?.status?.short;
       const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
-      if (['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status)) return;
+      
+      // Bitmiş maçları atla
+      if (['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status)) {
+        return;
+      }
+      
+      // Sadece bugünkü maçlar
       if (matchDate === today && !allMatches.some(m => m.fixture.id === match.fixture.id)) {
         allMatches.push(match);
       }
     });
     
+    // Tarihe göre sırala
     allMatches.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
     
     return {
