@@ -94,7 +94,7 @@ class ApiService {
   async getUpcomingMatches() {
     const today = new Date();
     const dates = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 1; i <= 3; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
@@ -214,36 +214,39 @@ class ApiService {
 
   // ===== MAIN FUNCTION: Get matches with priority =====
   async getMatches() {
-    // 1. Try live matches first
+    // 1. Canlı maçları getir
     const liveData = await this.getAllLiveMatches();
+    const liveMatches = liveData.response || [];
     
-    if (liveData.response && liveData.response.length > 0) {
-      return {
-        matches: liveData.response,
-        isLive: true,
-        count: liveData.response.length
-      };
-    }
-    
-    // 2. No live matches, get today's matches
+    // 2. Bugünkü maçları getir
     const todayData = await this.getTodayMatches();
+    const todayMatches = todayData.response || [];
     
-    if (todayData.response && todayData.response.length > 0) {
-      return {
-        matches: todayData.response,
-        isLive: false,
-        count: todayData.response.length
-      };
-    }
-    
-    // 3. No matches today, get upcoming
+    // 3. Yaklaşan maçları getir (yarın ve öbür gün)
     const upcomingData = await this.getUpcomingMatches();
+    const upcomingMatches = upcomingData.response || [];
+    
+    // Birleştir ve tekrarları kaldır
+    const allMatches = [...liveMatches];
+    
+    // Bugünkü maçları ekle (canlı olmayanlar)
+    todayMatches.forEach(match => {
+      if (!allMatches.some(m => m.fixture.id === match.fixture.id)) {
+        allMatches.push(match);
+      }
+    });
+    
+    // Yaklaşan maçları ekle
+    upcomingMatches.forEach(match => {
+      if (!allMatches.some(m => m.fixture.id === match.fixture.id)) {
+        allMatches.push(match);
+      }
+    });
     
     return {
-      matches: upcomingData.response || [],
-      isLive: false,
-      count: upcomingData.response?.length || 0,
-      isUpcoming: true
+      matches: allMatches,
+      isLive: liveMatches.length > 0,
+      count: allMatches.length
     };
   }
 
