@@ -1,6 +1,5 @@
 // ===== Main Application v3 - Complete System =====
 
-// Ensure couponService is available globally
 if (typeof couponService === 'undefined' && typeof CouponService !== 'undefined') {
   window.couponService = new CouponService();
 }
@@ -14,20 +13,15 @@ class App {
   }
 
   async init() {
-    // Wait for all services to be available
     await this.waitForServices();
-    
-    // Check auth for dashboard
     if (document.getElementById('dashUserName')) {
       if (!authService.requireAuth()) return;
       this.initDashboard();
     }
-    
     this.setupEventListeners();
   }
   
   async waitForServices() {
-    // Wait up to 5 seconds for couponService to be available
     let attempts = 0;
     while (typeof couponService === 'undefined' && attempts < 50) {
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -37,39 +31,22 @@ class App {
 
   async initDashboard() {
     const user = authService.getCurrentUser();
-    
-    // Update user info
     document.getElementById('dashUserName').textContent = user.name;
     document.getElementById('dashUserEmail').textContent = user.email;
-
-    // Update premium UI
     this.updatePremiumUI();
-
-    // Start clock
     this.startClock();
-
-    // Load initial data
     await this.loadLiveMatches();
-    
-    // Load AI analyses
     await this.loadAIAnalyses();
-    
-    // Load user coupon
     if (typeof couponService !== 'undefined') {
       couponService.renderUserCoupon();
     }
-    
-    // Load premium coupons if applicable
     if (authService.isPremium()) {
       await this.generatePremiumCoupons();
     }
-
-    // Start auto-refresh
     this.startAutoRefresh();
   }
 
   setupEventListeners() {
-    // Login form
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
       loginForm.addEventListener('submit', (e) => {
@@ -77,8 +54,6 @@ class App {
         this.handleLogin();
       });
     }
-
-    // Register form
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
       registerForm.addEventListener('submit', (e) => {
@@ -90,18 +65,13 @@ class App {
 
   updatePremiumUI() {
     const isPremium = authService.isPremium();
-    
-    // Update nav lock icon
     const lockIcon = document.getElementById('premiumNavLock');
     if (lockIcon) {
       lockIcon.className = isPremium ? 'fas fa-unlock premium-lock-icon' : 'fas fa-lock premium-lock-icon';
       lockIcon.style.color = isPremium ? 'var(--green)' : 'var(--accent)';
     }
-
-    // Update premium section
     const premiumLocked = document.getElementById('premiumLocked');
     const premiumContent = document.getElementById('premiumContent');
-    
     if (premiumLocked && premiumContent) {
       if (isPremium) {
         premiumLocked.classList.add('hidden');
@@ -113,20 +83,15 @@ class App {
     }
   }
 
-  // ===== AUTH HANDLERS =====
-  
   handleLogin() {
     const email = document.getElementById('loginEmail')?.value;
     const password = document.getElementById('loginPass')?.value;
     const errorEl = document.getElementById('loginError');
-
     if (!email || !password) {
       if (errorEl) errorEl.textContent = 'E-posta ve şifre gereklidir!';
       return;
     }
-
     const result = authService.login(email, password);
-    
     if (result.success) {
       window.location.href = './dashboard.html';
     } else {
@@ -140,14 +105,11 @@ class App {
     const password = document.getElementById('regPass')?.value;
     const password2 = document.getElementById('regPass2')?.value;
     const errorEl = document.getElementById('regError');
-
     if (!name || !email || !password) {
       if (errorEl) errorEl.textContent = 'Tüm alanları doldurun!';
       return;
     }
-
     const result = authService.register(name, email, password, password2);
-    
     if (result.success) {
       window.location.href = './dashboard.html';
     } else {
@@ -155,38 +117,26 @@ class App {
     }
   }
 
-  // ===== LIVE MATCHES =====
-  
   async loadLiveMatches() {
     const container = document.getElementById('liveMatches');
     if (!container) return;
-
     container.innerHTML = `
       <div class="loading-state">
         <i class="fas fa-spinner fa-spin"></i>
         <p>Canlı maçlar yükleniyor...</p>
       </div>
     `;
-
     try {
       const data = await apiService.getMatches();
       this.liveMatches = data.matches || [];
-
-      // Update stats
       const liveCountEl = document.getElementById('liveCount');
       const todayCountEl = document.getElementById('todayCount');
-      
       if (liveCountEl) liveCountEl.textContent = data.isLive ? data.count : 0;
       if (todayCountEl) todayCountEl.textContent = data.isLive ? 0 : data.count;
-
-      // Update API info
       const apiInfo = document.getElementById('apiInfo');
       if (apiInfo) {
-        apiInfo.innerHTML = `
-          <span class="requests">${apiService.getRequestCount().toLocaleString()} / 75,000</span>
-        `;
+        apiInfo.innerHTML = `<span class="requests">${apiService.getRequestCount().toLocaleString()} / 75,000</span>`;
       }
-
       if (this.liveMatches.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
@@ -196,9 +146,7 @@ class App {
         `;
         return;
       }
-
       this.renderLiveMatches();
-
     } catch (error) {
       console.error('Load matches error:', error);
       container.innerHTML = `
@@ -214,10 +162,8 @@ class App {
   renderLiveMatches() {
     const container = document.getElementById('liveMatches');
     if (!container) return;
-
     const isLive = this.liveMatches.some(m => ['1H', '2H', 'HT', 'ET'].includes(m.fixture?.status?.short));
     const title = isLive ? '🔴 Canlı Maçlar' : '📅 Programdaki Maçlar';
-
     container.innerHTML = `
       <div class="matches-header">
         <h3>${title} (${this.liveMatches.length})</h3>
@@ -229,19 +175,11 @@ class App {
   }
 
   renderMatchCard(match) {
-    // Safety check for match data
-    if (!match || !match.fixture) {
-      return '';
-    }
-    
+    if (!match || !match.fixture) return '';
     const isLive = ['1H', '2H', 'HT', 'ET'].includes(match.fixture?.status?.short);
     const status = match.fixture?.status;
     const isInCoupon = typeof couponService !== 'undefined' ? couponService.isInCoupon(match.fixture.id) : false;
-    const matchTime = new Date(match.fixture?.date).toLocaleTimeString('tr-TR', {
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
-
+    const matchTime = new Date(match.fixture?.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
     return `
       <div class="match-card ${isLive ? 'live' : ''}">
         <div class="match-header">
@@ -254,25 +192,21 @@ class App {
             ${isLive ? status?.elapsed + "'" : matchTime}
           </div>
         </div>
-        
         <div class="match-teams">
           <div class="team home">
             <img src="${match.teams?.home?.logo || ''}" alt="" onerror="this.style.display='none'">
             <span>${match.teams?.home?.name}</span>
           </div>
-          
           <div class="score">
             <span>${match.goals?.home ?? '-'}</span>
             <span class="separator">:</span>
             <span>${match.goals?.away ?? '-'}</span>
           </div>
-          
           <div class="team away">
             <span>${match.teams?.away?.name}</span>
             <img src="${match.teams?.away?.logo || ''}" alt="" onerror="this.style.display='none'">
           </div>
         </div>
-        
         <button class="add-to-coupon ${isInCoupon ? 'added' : ''}" 
                 onclick="app.toggleCouponMatch(${match.fixture.id})"
                 id="btn-${match.fixture.id}">
@@ -286,7 +220,6 @@ class App {
   toggleCouponMatch(fixtureId) {
     const match = this.liveMatches.find(m => m && m.fixture && m.fixture.id === fixtureId);
     if (!match || typeof couponService === 'undefined') return;
-
     if (couponService.isInCoupon(fixtureId)) {
       couponService.removeFromCoupon(fixtureId);
     } else {
@@ -299,20 +232,11 @@ class App {
         odds: 1.5
       });
     }
-
-    // Update button
     const btn = document.getElementById(`btn-${fixtureId}`);
     if (!btn || typeof couponService === 'undefined') return;
-    
     const isInCoupon = couponService.isInCoupon(fixtureId);
-    
     btn.className = `add-to-coupon ${isInCoupon ? 'added' : ''}`;
-    btn.innerHTML = `
-      <i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>
-      ${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}
-    `;
-
-    // Update coupon display
+    btn.innerHTML = `<i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}`;
     if (typeof couponService !== 'undefined') {
       couponService.renderUserCoupon();
     }
@@ -320,10 +244,8 @@ class App {
 
   addToCouponWithPrediction(fixtureId) {
     if (typeof couponService === 'undefined') return;
-    
     const analysis = this.analyses.find(a => a.fixtureId === fixtureId);
     if (!analysis) return;
-
     if (couponService.isInCoupon(fixtureId)) {
       couponService.removeFromCoupon(fixtureId);
     } else {
@@ -337,48 +259,45 @@ class App {
         odds: parseFloat(analysis.bestMarket.odds)
       });
     }
-
-    // Update button
     const btn = document.getElementById(`ai-btn-${fixtureId}`);
     const isInCoupon = couponService.isInCoupon(fixtureId);
-    
     if (btn) {
       btn.className = `add-to-coupon ${isInCoupon ? 'added' : ''}`;
-      btn.innerHTML = `
-        <i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>
-        ${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}
-      `;
+      btn.innerHTML = `<i class="fas ${isInCoupon ? 'fa-check' : 'fa-plus'}"></i>${isInCoupon ? 'Kuponda' : 'Kupona Ekle'}`;
     }
-
     if (typeof couponService !== 'undefined') {
       couponService.renderUserCoupon();
     }
   }
 
-  // ===== AI ANALYSES =====
-  
   async loadAIAnalyses() {
     if (typeof couponService === 'undefined') return;
-    
-    // Check cached analyses
     const cached = couponService.getAnalyses();
     if (cached) {
       this.analyses = cached;
       this.renderAIAnalyses();
       return;
     }
-
-    // Need fresh analyses
     if (this.liveMatches.length === 0) return;
-
-    // Filter matches that haven't started yet or are live
-    const analyzableMatches = this.liveMatches.filter(m => 
-      ['NS', '1H', '2H', 'HT'].includes(m.fixture?.status?.short)
-    );
-
-    if (analyzableMatches.length === 0) return;
-
-    // Show analyzing state
+    const today = new Date().toISOString().split('T')[0];
+    const analyzableMatches = this.liveMatches.filter(m => {
+      const matchDate = new Date(m.fixture?.date).toISOString().split('T')[0];
+      const status = m.fixture?.status?.short;
+      return matchDate === today && ['NS', '1H', '2H', 'HT', 'ET'].includes(status);
+    });
+    if (analyzableMatches.length === 0) {
+      const container = document.getElementById('aiCards');
+      if (container) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-calendar"></i>
+            <p>Bugün için analiz edilecek maç bulunmuyor.</p>
+            <small>Yarın için yeni tahminler gelecek.</small>
+          </div>
+        `;
+      }
+      return;
+    }
     const container = document.getElementById('aiCards');
     if (container) {
       container.innerHTML = `
@@ -389,26 +308,15 @@ class App {
         </div>
       `;
     }
-
     this.isAnalyzing = true;
-
     try {
-      // TÜM MAÇLARI ANALİZ ET - LİMİT YOK
       const matchesToAnalyze = analyzableMatches;
-      
       this.analyses = await aiEngine.analyzeFixtures(matchesToAnalyze);
-      
-      // Save analyses
       if (typeof couponService !== 'undefined') {
         couponService.saveAnalyses(this.analyses);
       }
-      
-      // Render
       this.renderAIAnalyses();
-      
-      // Generate daily coupon
       this.generateDailyCoupon();
-
     } catch (error) {
       console.error('AI Analysis error:', error);
       if (container) {
@@ -420,22 +328,17 @@ class App {
         `;
       }
     }
-
     this.isAnalyzing = false;
   }
 
   renderAIAnalyses() {
     if (typeof couponService === 'undefined') return;
-    
     const isPremium = authService.isPremium();
     couponService.renderAICards(this.analyses, isPremium);
   }
 
-  // ===== COUPONS =====
-  
   generateDailyCoupon() {
     if (this.analyses.length === 0 || typeof couponService === 'undefined') return;
-
     const dailyCoupon = aiEngine.generatePremiumCoupons(this.analyses);
     if (dailyCoupon && dailyCoupon.coupons.length > 0) {
       couponService.savePremiumCoupons(dailyCoupon);
@@ -446,9 +349,7 @@ class App {
   renderDailyCoupon(coupon) {
     const container = document.getElementById('couponHero');
     if (!container) return;
-
     const confidenceClass = coupon.avgConfidence >= 80 ? 'high' : 'medium';
-
     container.innerHTML = `
       <div class="daily-coupon-hero">
         <div class="hero-header">
@@ -465,8 +366,6 @@ class App {
         </button>
       </div>
     `;
-
-    // Render picks
     const picksContainer = document.getElementById('couponMatches');
     if (picksContainer) {
       picksContainer.innerHTML = coupon.picks.map((pick, idx) => `
@@ -488,12 +387,9 @@ class App {
 
   addDailyToCoupon() {
     if (typeof couponService === 'undefined') return;
-    
     const coupons = couponService.getPremiumCoupons();
     if (!coupons || !coupons.coupons || coupons.coupons.length === 0) return;
-
     const dailyCoupon = coupons.coupons[0];
-    
     dailyCoupon.picks.forEach(pick => {
       if (!couponService.isInCoupon(pick.fixtureId)) {
         couponService.addToCoupon({
@@ -507,25 +403,18 @@ class App {
         });
       }
     });
-
     couponService.renderUserCoupon();
     showSection('my-coupon');
   }
 
-  // ===== PREMIUM COUPONS =====
-  
   async generatePremiumCoupons() {
     if (typeof couponService === 'undefined') return;
-    
-    // Check cached
     const cached = couponService.getPremiumCoupons();
     if (cached) {
       couponService.renderPremiumCoupons(cached);
       return;
     }
-
     if (this.analyses.length === 0) return;
-
     const premiumCoupons = aiEngine.generatePremiumCoupons(this.analyses);
     if (premiumCoupons) {
       couponService.savePremiumCoupons(premiumCoupons);
@@ -535,12 +424,9 @@ class App {
 
   addPremiumToCoupon(couponIndex) {
     if (typeof couponService === 'undefined') return;
-    
     const coupons = couponService.getPremiumCoupons();
     if (!coupons || !coupons.coupons || !coupons.coupons[couponIndex]) return;
-
     const coupon = coupons.coupons[couponIndex];
-    
     coupon.picks.forEach(pick => {
       if (!couponService.isInCoupon(pick.fixtureId)) {
         couponService.addToCoupon({
@@ -554,20 +440,14 @@ class App {
         });
       }
     });
-
     couponService.renderUserCoupon();
     showSection('my-coupon');
   }
 
-  // ===== AUTO REFRESH =====
-  
   startAutoRefresh() {
-    // Refresh live matches every 60 seconds
     setInterval(() => {
       this.loadLiveMatches();
     }, 60000);
-
-    // Check for finished matches every 5 minutes
     setInterval(() => {
       if (typeof couponService !== 'undefined') {
         couponService.checkSuccessfulPredictions(this.analyses);
@@ -578,13 +458,9 @@ class App {
   startClock() {
     const clockEl = document.getElementById('clock');
     if (!clockEl) return;
-
     const update = () => {
-      clockEl.textContent = new Date().toLocaleTimeString('tr-TR', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-      });
+      clockEl.textContent = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
-
     update();
     setInterval(update, 1000);
   }
@@ -595,8 +471,6 @@ class App {
     }
   }
 }
-
-// ===== GLOBAL FUNCTIONS =====
 
 function handleLogin(e) {
   e.preventDefault();
@@ -629,25 +503,18 @@ function toggleSidebar() {
 }
 
 function showSection(section) {
-  // Hide all sections
   ['live', 'ai', 'coupon', 'my-coupon', 'successful', 'premium'].forEach(s => {
     const el = document.getElementById(`sec-${s}`);
     if (el) el.classList.add('hidden');
   });
-
-  // Show selected section
   const selectedEl = document.getElementById(`sec-${section}`);
   if (selectedEl) selectedEl.classList.remove('hidden');
-
-  // Update nav items
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.remove('active');
     if (item.getAttribute('onclick')?.includes(section)) {
       item.classList.add('active');
     }
   });
-
-  // Update title
   const titles = {
     live: 'Canlı Maçlar',
     ai: 'YZ Tahminleri',
@@ -656,11 +523,8 @@ function showSection(section) {
     successful: 'Tutan Analizler',
     premium: 'Premium Kuponlar'
   };
-  
   const titleEl = document.getElementById('sectionTitle');
   if (titleEl) titleEl.textContent = titles[section] || '';
-
-  // Load section-specific data
   if (section === 'successful') {
     if (typeof couponService !== 'undefined') {
       couponService.renderSuccessfulPredictions();
@@ -680,31 +544,23 @@ function clearMyCoupon() {
 function updateCouponWin() {
   const amount = parseFloat(document.getElementById('couponAmount')?.value) || 100;
   if (typeof couponService === 'undefined') return;
-  
   const stats = couponService.getCouponStats();
   const win = (amount * parseFloat(stats.totalOdds)).toFixed(2);
-  
   const winEl = document.getElementById('myCouponWin');
   if (winEl) winEl.textContent = win + '₺';
 }
 
 function filterLive(filter) {
-  // Update active button
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.classList.remove('active');
     if (btn.getAttribute('onclick')?.includes(filter)) {
       btn.classList.add('active');
     }
   });
-
-  // Filter matches
   let filtered = app.liveMatches;
-  
   if (filter !== 'all') {
     filtered = app.liveMatches.filter(m => m.fixture?.status?.short === filter);
   }
-
-  // Re-render
   const container = document.getElementById('liveMatches');
   if (container) {
     container.innerHTML = `
@@ -719,17 +575,13 @@ function filterLive(filter) {
 }
 
 function filterByContinent(continent) {
-  // Update active button
   document.querySelectorAll('.continent-btn').forEach(btn => {
     btn.classList.remove('active');
     if (btn.getAttribute('onclick')?.includes(continent)) {
       btn.classList.add('active');
     }
   });
-
-  // Filter matches by continent
   let filtered = app.liveMatches;
-  
   if (continent !== 'all') {
     const continentCountries = {
       'europe': ['England', 'Spain', 'Italy', 'Germany', 'France', 'Portugal', 'Netherlands', 'Belgium', 'Scotland', 'Turkey', 'Greece', 'Switzerland', 'Austria', 'Denmark', 'Sweden', 'Norway', 'Finland', 'Poland', 'Czech-Republic', 'Romania', 'Bulgaria', 'Serbia', 'Croatia', 'Ukraine', 'Russia', 'Ireland', 'Wales'],
@@ -739,12 +591,9 @@ function filterByContinent(continent) {
       'northamerica': ['USA', 'Canada', 'Mexico', 'Costa-Rica', 'Honduras', 'Guatemala', 'Panama', 'El-Salvador', 'Jamaica', 'Trinidad-and-Tobago', 'Haiti', 'Dominican-Republic', 'Nicaragua'],
       'oceania': ['Australia', 'New-Zealand', 'Fiji', 'Papua-New-Guinea', 'Solomon-Islands', 'Tahiti', 'New-Caledonia']
     };
-    
     const countries = continentCountries[continent] || [];
     filtered = app.liveMatches.filter(m => countries.includes(m.league?.country));
   }
-
-  // Re-render
   const container = document.getElementById('liveMatches');
   if (container) {
     container.innerHTML = `
@@ -762,7 +611,6 @@ function showPremiumModal() {
   alert('Premium üyelik için: djclubu@tahminarena.com adresine e-posta gönderin.');
 }
 
-// Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
 });
