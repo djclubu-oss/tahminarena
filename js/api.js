@@ -87,15 +87,19 @@ class ApiService {
     return this.makeRequest('/injuries', { team: teamId, league: leagueId });
   }
 
-  // CANLI MAÇLAR - Sadece şu anda oynanan
+  // CANLI MAÇLAR - Sadece bugün oynanan gerçek canlı maçlar
   async getLiveMatches() {
+    const today = new Date().toISOString().split('T')[0];
     const liveData = await this.getAllLiveMatches();
     const allMatches = liveData.response || [];
     
-    // Sadece gerçekten canlı oynanan maçlar
+    // Sadece bugünkü ve gerçekten canlı oynanan maçlar
     const activeMatches = allMatches.filter(match => {
       const status = match.fixture?.status?.short;
-      return ['1H', '2H', 'HT', 'ET'].includes(status);
+      const matchDate = new Date(match.fixture?.date).toISOString().split('T')[0];
+      
+      // Sadece bugün ve canlı status
+      return matchDate === today && ['1H', '2H', 'HT', 'ET'].includes(status);
     });
     
     return {
@@ -116,7 +120,6 @@ class ApiService {
     // Bitmemiş maçları filtrele
     const filteredMatches = todayMatches.filter(match => {
       const status = match.fixture?.status?.short;
-      // Bitmiş maçları atla
       return !['FT', 'AET', 'PEN', 'SUSP', 'INT', 'PST', 'CANC', 'ABD'].includes(status);
     });
     
