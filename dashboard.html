@@ -204,82 +204,129 @@
         </section>
     </main>
 
-    <!-- Scripts -->
-    <script src="js/ai.js"></script>
+    <!-- Scripts - ÖNCE api.js SONRA ai.js -->
     <script src="js/api.js"></script>
+    <script src="js/ai.js"></script>
     <script src="js/app.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/couponManager.js"></script>
     
     <script>
-        // Saat
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('clock').textContent = now.toLocaleTimeString('tr-TR');
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+    // Saat
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('tr-TR');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-        // Sidebar toggle
-        function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('open');
-        }
+    // Sidebar
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('open');
+    }
 
-        // Navigasyon
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                if (this.classList.contains('winning-nav-item')) return;
-                
-                e.preventDefault();
-                const section = this.dataset.section;
-                
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                this.classList.add('active');
-                
-                document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-                if (document.getElementById(section + '-section')) {
-                    document.getElementById(section + '-section').classList.remove('hidden');
+    // AI sekmesine tıklandığında maçları yükle
+    document.querySelector('[data-section="ai"]').addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('AI sekmesine tıklandı!');
+        
+        // Aktif nav
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Bölümleri göster/gizle
+        document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+        document.getElementById('ai-section').classList.remove('hidden');
+        
+        // Başlık güncelle
+        document.getElementById('page-title').textContent = 'AI Tahminler';
+        
+        // Maçları yükle
+        if (typeof aiEngine !== 'undefined' && aiEngine.analyzeAllDailyMatches) {
+            console.log('aiEngine bulundu, maçlar yükleniyor...');
+            aiEngine.analyzeAllDailyMatches();
+        } else {
+            console.error('aiEngine bulunamadı, 1 saniye sonra tekrar denenecek...');
+            setTimeout(() => {
+                if (typeof aiEngine !== 'undefined' && aiEngine.analyzeAllDailyMatches) {
+                    aiEngine.analyzeAllDailyMatches();
+                } else {
+                    console.error('aiEngine hala bulunamadı!');
+                    document.getElementById('ai-predictions').innerHTML = `
+                        <div class="empty-state error">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Sistem yüklenemedi. Lütfen sayfayı yenileyin.</p>
+                        </div>
+                    `;
                 }
-                
-                const titles = {
-                    'live': 'Canlı Maçlar',
-                    'ai': 'AI Tahminler',
-                    'daily': 'Günlük Kupon',
-                    'coupon': 'Kuponum',
-                    'premium': 'Premium'
-                };
-                document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
-            });
+            }, 1000);
+        }
+    });
+
+    // Diğer navigasyonlar
+    document.querySelectorAll('.nav-item[data-section]').forEach(item => {
+        if (item.dataset.section === 'ai') return; // AI zaten yukarıda
+        
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const section = this.dataset.section;
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+            
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            const target = document.getElementById(section + '-section');
+            if (target) target.classList.remove('hidden');
+            
+            const titles = {
+                'live': 'Canlı Maçlar',
+                'daily': 'Günlük Kupon',
+                'coupon': 'Kuponum',
+                'premium': 'Premium'
+            };
+            document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
         });
+    });
 
-        // Çıkış
-        function logout() {
-            localStorage.removeItem('currentUser');
-            window.location.href = 'index.html';
-        }
+    function logout() {
+        localStorage.removeItem('currentUser');
+        window.location.href = 'index.html';
+    }
 
-        // Kullanıcı bilgisi
-        const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        if (user.username) {
-            document.getElementById('username').textContent = user.username;
-        }
-        if (user.premium) {
-            document.getElementById('user-status').textContent = 'Premium Üye';
-            document.getElementById('user-status').style.color = 'var(--accent)';
-        }
+    function clearCoupon() {
+        document.getElementById('my-coupon-matches').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>Henüz maç eklemediniz.</p>
+            </div>
+        `;
+        document.getElementById('coupon-match-count').textContent = '0';
+        document.getElementById('total-odds').textContent = '1.00';
+        document.getElementById('expected-win').textContent = '0₺';
+    }
 
-        // Kupon temizle
-        function clearCoupon() {
-            document.getElementById('my-coupon-matches').innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <p>Henüz maç eklemediniz.</p>
-                </div>
-            `;
-            document.getElementById('coupon-match-count').textContent = '0';
-            document.getElementById('total-odds').textContent = '1.00';
-            document.getElementById('expected-win').textContent = '0₺';
-        }
+    // Kullanıcı bilgisi
+    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (user.username) {
+        document.getElementById('username').textContent = user.username;
+    }
+    if (user.premium) {
+        document.getElementById('user-status').textContent = 'Premium Üye';
+        document.getElementById('user-status').style.color = 'var(--accent)';
+    }
+    
+    // Sayfa açılınca AI sekmesi aktifse otomatik yükle
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            const aiSection = document.getElementById('ai-section');
+            if (aiSection && !aiSection.classList.contains('hidden')) {
+                console.log('Sayfa yüklendi, AI otomatik başlatılıyor...');
+                if (typeof aiEngine !== 'undefined' && aiEngine.analyzeAllDailyMatches) {
+                    aiEngine.analyzeAllDailyMatches();
+                }
+            }
+        }, 500);
+    });
     </script>
 </body>
 </html>
