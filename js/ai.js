@@ -661,3 +661,6 @@ function toggleWinningPanel() {
     const panel = document.getElementById('winning-panel');
     if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
+// ai.js EN SONUNA EKLE - Global değişken tanımla
+window.aiEngine = aiEngine;
+console.log('aiEngine global olarak tanımlandı:', window.aiEngine);
