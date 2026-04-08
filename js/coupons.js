@@ -1,5 +1,23 @@
 // ===== Enhanced Coupon Service =====
 
+// STORAGE_KEYS kontrolü
+if (typeof STORAGE_KEYS === 'undefined') {
+  var STORAGE_KEYS = {
+    SESSION: 'ta_session',
+    USERS: 'ta_users',
+    USER_COUPON: 'ta_user_coupon',
+    AI_ANALYSES: 'ta_ai_analyses',
+    PREMIUM_COUPONS: 'ta_premium_coupons',
+    DAILY_COUPON: 'ta_daily_coupon',
+    SUCCESSFUL_PREDICTIONS: 'ta_successful',
+    API_REQUESTS: 'ta_api_requests'
+  };
+}
+
+class CouponService {
+}
+// ===== Enhanced Coupon Service =====
+
 class CouponService {
   constructor() {
     this.couponKey = STORAGE_KEYS.USER_COUPON;
